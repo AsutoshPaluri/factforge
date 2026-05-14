@@ -53,3 +53,6 @@ class AgentState(TypedDict, total=False):
     final_confidence: float
     final_probs: dict[str, float]
     final_reason: str
+
+    # --- Summarizer output (plain-English explanation, cites sources) ---
+    summary: str

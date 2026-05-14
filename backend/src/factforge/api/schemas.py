@@ -4,22 +4,65 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 Verdict = Literal["Real", "Misinformation", "Disinformation"]
 
+# Max base64 payload size for an image — ~4.4 MB raw = ~6 MB encoded.
+# Bigger than this likely means a HEIC / RAW that won't be useful anyway.
+_MAX_IMAGE_B64_CHARS = 6_000_000
+
+_ALLOWED_MIME = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/gif"}
+)
+
 
 class ClaimRequest(BaseModel):
-    """POST /api/v1/claims body."""
+    """POST /api/v1/claims body.
+
+    At least one of `claim` or `image_b64` must be provided. If both, the
+    agent uses the image to extract the claim and the text as additional
+    context (e.g. "the screenshot below + this person says X").
+    """
 
     claim: str = Field(
-        ...,
-        min_length=3,
+        default="",
         max_length=1000,
-        description="The claim to fact-check. Plain English, one or more sentences.",
+        description=(
+            "The claim to fact-check. Optional if `image_b64` is provided "
+            "(the agent will extract the claim from the image)."
+        ),
     )
-    # Image input is supported by the agent but not yet exposed in the API.
-    # Add `image_b64: str | None = None` here when we wire up multimodal UI.
+    image_b64: str | None = Field(
+        default=None,
+        description=(
+            "Optional base64-encoded image (JPEG/PNG/WebP/GIF). The agent "
+            "will run Gemini Vision on it to extract and decompose the claim."
+        ),
+    )
+    image_mime: str = Field(
+        default="image/jpeg",
+        description="MIME type of the image. Must be image/jpeg|png|webp|gif.",
+    )
+
+    @model_validator(mode="after")
+    def _validate(self) -> "ClaimRequest":
+        if not self.claim.strip() and not self.image_b64:
+            raise ValueError(
+                "at least one of `claim` (>=3 chars) or `image_b64` is required"
+            )
+        if self.claim.strip() and len(self.claim.strip()) < 3:
+            raise ValueError("`claim` must be at least 3 characters if provided")
+        if self.image_b64:
+            if self.image_mime not in _ALLOWED_MIME:
+                raise ValueError(
+                    f"image_mime must be one of {sorted(_ALLOWED_MIME)}"
+                )
+            if len(self.image_b64) > _MAX_IMAGE_B64_CHARS:
+                raise ValueError(
+                    f"image too large (base64 payload > {_MAX_IMAGE_B64_CHARS} chars)"
+                )
+        return self
 
 
 class EvidenceOut(BaseModel):
@@ -58,5 +101,17 @@ class ClaimResponse(BaseModel):
     confidence: float
     probs: dict[str, float]
     reason: str
+    summary: str = Field(
+        default="",
+        description=(
+            "Plain-English 2-3 paragraph explanation of the verdict, "
+            "citing named sources from the retrieved evidence. Empty "
+            "string if the summarizer step failed."
+        ),
+    )
     sub_results: list[SubClaimOut]
     duration_ms: int
+    was_multimodal: bool = Field(
+        default=False,
+        description="True if an image was provided as input.",
+    )

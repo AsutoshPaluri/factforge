@@ -1,11 +1,13 @@
 """Public HTTP routes for factforge.
 
 Exposes the LangGraph agent as a single POST endpoint so the frontend
-can submit claims and receive verdicts.
+can submit claims (text + optional image) and receive verdicts.
 """
 
 from __future__ import annotations
 
+import base64
+import binascii
 import time
 
 import structlog
@@ -64,16 +66,38 @@ def _build_sub_claim_out(sr: dict) -> SubClaimOut:
 async def submit_claim(payload: ClaimRequest) -> ClaimResponse:
     """Fact-check a claim end-to-end.
 
-    Pipeline: decompose -> retrieve (DDG) -> NLI (DeBERTa) -> synthesize.
-    Returns the final verdict, per-sub-claim breakdown, and top evidence.
+    Accepts text claim, image claim (via base64), or both. Pipeline:
+    decompose (Gemini, vision-capable) → retrieve (DDG) → NLI (DeBERTa) →
+    synthesize.
     """
     t0 = time.time()
     graph = get_graph()
 
+    # Decode the optional image payload
+    image_bytes: bytes | None = None
+    if payload.image_b64:
+        try:
+            image_bytes = base64.b64decode(payload.image_b64, validate=True)
+        except (ValueError, binascii.Error) as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"invalid base64 image: {e}",
+            ) from e
+
+    agent_input = {
+        "claim": payload.claim.strip(),
+        "image_bytes": image_bytes,
+        "image_mime": payload.image_mime,
+    }
+
     try:
-        final_state = await graph.ainvoke({"claim": payload.claim})
-    except Exception as e:  # noqa: BLE001
-        logger.exception("claim_pipeline_failed", claim=payload.claim[:80])
+        final_state = await graph.ainvoke(agent_input)
+    except Exception as e:
+        logger.exception(
+            "claim_pipeline_failed",
+            claim=payload.claim[:80],
+            had_image=image_bytes is not None,
+        )
         raise HTTPException(
             status_code=500,
             detail=f"agent pipeline error: {type(e).__name__}",
@@ -87,6 +111,7 @@ async def submit_claim(payload: ClaimRequest) -> ClaimResponse:
     logger.info(
         "claim_completed",
         claim=payload.claim[:80],
+        had_image=image_bytes is not None,
         verdict=final_state.get("final_verdict"),
         confidence=final_state.get("final_confidence"),
         duration_ms=duration_ms,
@@ -99,6 +124,8 @@ async def submit_claim(payload: ClaimRequest) -> ClaimResponse:
         confidence=final_state["final_confidence"],
         probs=final_state["final_probs"],
         reason=final_state.get("final_reason", ""),
+        summary=final_state.get("summary", ""),
         sub_results=sub_results_out,
         duration_ms=duration_ms,
+        was_multimodal=image_bytes is not None,
     )
