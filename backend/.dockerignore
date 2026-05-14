@@ -1,0 +1,21 @@
+# Don't ship local virtualenvs, caches, or test artifacts into the image
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.pyright_cache/
+tests/
+scripts/
+.env
+.env.bak
+.env.local
+*.log
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
