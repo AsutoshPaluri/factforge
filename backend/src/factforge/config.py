@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     )
 
     # --- Required keys ---
-    gemini_api_key: str = ""
+    gemini_api_key: str = ""             # Vision (image-input decomposition)
+    groq_api_key: str = ""               # Text LLM (decompose + summarize)
     supabase_url: str = ""
     supabase_publishable_key: str = ""   # Frontend-safe (formerly "anon")
     supabase_secret_key: str = ""        # Backend-only, bypasses RLS (formerly "service_role")
@@ -42,6 +43,7 @@ class Settings(BaseSettings):
     nli_model_name: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
     nli_device: str = "cpu"  # cpu | mps | cuda
     gemini_model: str = "gemini-2.5-flash"
+    groq_model: str = "llama-3.3-70b-versatile"
 
     # --- App ---
     frontend_url: str = "http://localhost:3000"

@@ -2,15 +2,15 @@
 
 Breaks a compound claim into atomic, individually-verifiable sub-claims.
 
+Routing:
+  - Text-only claim -> Groq (Llama 3.3 70B, fast + generous free tier)
+  - Image present  -> Gemini (vision-capable; Groq doesn't support images yet)
+
 Examples:
     "Vaccines cause autism and the earth is flat"
         -> ["Vaccines cause autism", "The earth is flat"]
     "Drinking water lowers your IQ"
         -> ["Drinking water lowers your IQ"]   (already atomic)
-
-If `image_bytes` is present, the image is shown to Gemini alongside any
-text claim so the model can extract claims depicted in the image
-(screenshot of a tweet, infographic, etc.).
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from factforge.agent.state import AgentState
 from factforge.clients.gemini import get_gemini
+from factforge.clients.groq import get_groq
 
 logger = structlog.get_logger(__name__)
 
@@ -81,22 +82,26 @@ async def decomposer_node(state: AgentState) -> dict:
     if not claim and not image_bytes:
         raise ValueError("decomposer: at least one of claim or image_bytes required")
 
-    gemini = get_gemini()
-
     if image_bytes:
+        # Vision: route to Gemini (Groq doesn't support image input yet)
         text_part = (
             f"Accompanying text:\n{claim}" if claim else "No accompanying text."
         )
         prompt = _MULTIMODAL_PROMPT_TEMPLATE.format(text_part=text_part)
+        gemini = get_gemini()
         result = await gemini.generate_multimodal(
             prompt=prompt,
             image_bytes=image_bytes,
             image_mime=image_mime,
             schema=_DecomposerOutput,
         )
+        llm_used = "gemini"
     else:
+        # Text: route to Groq (fast, generous free tier)
         prompt = _PROMPT_TEMPLATE.format(claim=claim)
-        result = await gemini.generate_structured(prompt, _DecomposerOutput)
+        groq = get_groq()
+        result = await groq.generate_structured(prompt, _DecomposerOutput)
+        llm_used = "groq"
 
     # `result` is _DecomposerOutput here
     sub_claims = [c.strip() for c in result.sub_claims if c and c.strip()]
@@ -108,5 +113,6 @@ async def decomposer_node(state: AgentState) -> dict:
         "decomposer_done",
         original_claim=claim[:80],
         n_sub_claims=len(sub_claims),
+        llm=llm_used,
     )
     return {"sub_claims": sub_claims}

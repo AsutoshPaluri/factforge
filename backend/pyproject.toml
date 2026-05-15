@@ -17,6 +17,7 @@ dependencies = [
 
     # LLM
     "google-genai>=0.4.0",
+    "groq>=0.13.0",
 
     # NLI (transformers + torch + tokenizer deps)
     "transformers>=4.46.0",

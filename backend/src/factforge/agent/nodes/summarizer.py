@@ -15,7 +15,7 @@ import structlog
 from pydantic import BaseModel, Field
 
 from factforge.agent.state import AgentState
-from factforge.clients.gemini import get_gemini
+from factforge.clients.groq import get_groq
 
 logger = structlog.get_logger(__name__)
 
@@ -125,8 +125,8 @@ async def summarizer_node(state: AgentState) -> dict:
     )
 
     try:
-        gemini = get_gemini()
-        result = await gemini.generate_structured(prompt, _SummaryOutput)
+        groq = get_groq()
+        result = await groq.generate_structured(prompt, _SummaryOutput)
         summary = result.summary.strip()
     except Exception as e:
         # Don't fail the whole pipeline if the summary call has trouble —
@@ -134,5 +134,5 @@ async def summarizer_node(state: AgentState) -> dict:
         logger.warning("summarizer_failed", error=str(e))
         summary = ""
 
-    logger.info("summarizer_done", chars=len(summary))
+    logger.info("summarizer_done", chars=len(summary), llm="groq")
     return {"summary": summary}

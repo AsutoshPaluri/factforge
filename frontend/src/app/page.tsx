@@ -67,27 +67,39 @@ const verdictStyles = (v: Verdict | string) => {
   switch (v) {
     case "Real":
       return {
-        card: "bg-emerald-50 border-emerald-200 text-emerald-900",
-        bar: "bg-emerald-500",
-        pill: "bg-emerald-100 text-emerald-800 border-emerald-200",
+        glow: "glow-real",
+        text: "text-emerald-300",
+        accent: "text-emerald-400",
+        bar: "bg-gradient-to-r from-emerald-500 to-emerald-400",
+        pill: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
+        ring: "ring-emerald-500/30",
       };
     case "Misinformation":
       return {
-        card: "bg-amber-50 border-amber-200 text-amber-900",
-        bar: "bg-amber-500",
-        pill: "bg-amber-100 text-amber-800 border-amber-200",
+        glow: "glow-misinfo",
+        text: "text-amber-300",
+        accent: "text-amber-400",
+        bar: "bg-gradient-to-r from-amber-500 to-amber-400",
+        pill: "bg-amber-500/10 text-amber-300 border-amber-500/30",
+        ring: "ring-amber-500/30",
       };
     case "Disinformation":
       return {
-        card: "bg-rose-50 border-rose-200 text-rose-900",
-        bar: "bg-rose-500",
-        pill: "bg-rose-100 text-rose-800 border-rose-200",
+        glow: "glow-disinfo",
+        text: "text-rose-300",
+        accent: "text-rose-400",
+        bar: "bg-gradient-to-r from-rose-500 to-rose-400",
+        pill: "bg-rose-500/10 text-rose-300 border-rose-500/30",
+        ring: "ring-rose-500/30",
       };
     default:
       return {
-        card: "bg-slate-50 border-slate-200 text-slate-700",
-        bar: "bg-slate-500",
-        pill: "bg-slate-100 text-slate-700 border-slate-200",
+        glow: "",
+        text: "text-zinc-300",
+        accent: "text-zinc-400",
+        bar: "bg-zinc-600",
+        pill: "bg-zinc-800/60 text-zinc-300 border-zinc-700",
+        ring: "ring-zinc-700",
       };
   }
 };
@@ -120,14 +132,12 @@ function faviconUrl(url: string, size: 16 | 32 | 64 = 32): string {
 }
 
 // Minimal inline-markdown renderer: supports **bold** and *italic*.
-// Returns a list of React nodes so we can drop into <p>.
 function renderInlineMarkdown(text: string): React.ReactNode[] {
-  // Split into alternating plain / **bold** / *italic* segments
   const parts = text.split(/(\*\*[^*\n]+\*\*|\*[^*\n]+\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return (
-        <strong key={i} className="font-semibold text-stone-900">
+        <strong key={i} className="font-semibold text-zinc-100">
           {part.slice(2, -2)}
         </strong>
       );
@@ -138,7 +148,7 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
       !part.startsWith("**")
     ) {
       return (
-        <em key={i} className="italic">
+        <em key={i} className="italic text-zinc-100">
           {part.slice(1, -1)}
         </em>
       );
@@ -187,7 +197,7 @@ export default function Home() {
     return () => timers.forEach(clearTimeout);
   }, [loading]);
 
-  // Revoke object URL on unmount / change to avoid memory leak
+  // Revoke object URL on unmount / change
   useEffect(() => {
     return () => {
       if (imagePreview) URL.revokeObjectURL(imagePreview);
@@ -237,11 +247,7 @@ export default function Home() {
       const res = await fetch(`${API_URL}/api/v1/claims`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          claim: c,
-          image_b64,
-          image_mime,
-        }),
+        body: JSON.stringify({ claim: c, image_b64, image_mime }),
       });
       if (!res.ok) {
         const text = await res.text();
@@ -257,36 +263,44 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-stone-50 via-white to-stone-50">
+    <div className="relative min-h-screen text-zinc-100">
+      {/* Animated aurora background */}
+      <div className="aurora" aria-hidden />
+
       {/* Header */}
-      <header className="border-b border-stone-200/60 bg-white/70 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
+      <header className="sticky top-0 z-20 border-b border-white/5 backdrop-blur-md">
+        <div className="absolute inset-0 bg-zinc-950/50" aria-hidden />
+        <div className="relative mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2.5">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-5 w-5 text-indigo-600"
-              aria-hidden
-            >
-              <circle cx="10.5" cy="10.5" r="6.5" />
-              <path d="m21 21-5.5-5.5" />
-              <path d="m8 10.5 2 2 4-4" />
-            </svg>
-            <span className="text-xl font-semibold tracking-tight text-stone-900">
+            <span className="relative flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-fuchsia-500 shadow-[0_0_20px_-2px_rgba(129,140,248,0.6)]">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4 text-white"
+                aria-hidden
+              >
+                <circle cx="10.5" cy="10.5" r="6.5" />
+                <path d="m21 21-5.5-5.5" />
+                <path d="m8 10.5 2 2 4-4" />
+              </svg>
+            </span>
+            <span className="text-lg font-semibold tracking-tight text-zinc-100">
               factforge
             </span>
-            <span className="font-mono text-xs text-stone-400">v0.1</span>
+            <span className="rounded-full bg-zinc-800/80 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+              v0.1
+            </span>
           </div>
           <nav className="flex items-center gap-5 text-sm">
             <a
               href={`${API_URL}/docs`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-stone-500 transition hover:text-stone-900"
+              className="text-zinc-400 transition hover:text-zinc-100"
             >
               API
             </a>
@@ -294,7 +308,7 @@ export default function Home() {
               href="https://github.com/asutoshpaluri/factforge"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-stone-500 transition hover:text-stone-900"
+              className="text-zinc-400 transition hover:text-zinc-100"
             >
               GitHub
             </a>
@@ -302,31 +316,37 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-6 py-12">
+      <main className="relative mx-auto max-w-3xl px-6 py-16">
         {/* Hero */}
-        <section className="mb-10">
-          <h1 className="text-4xl font-semibold tracking-tight text-stone-900 sm:text-5xl">
+        <section className="mb-12">
+          <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-zinc-300 backdrop-blur-sm">
+            <span className="block h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+            Multimodal · Evidence-grounded · No tracking
+          </p>
+          <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">
             Fact-check{" "}
-            <span className="bg-gradient-to-r from-indigo-600 to-rose-500 bg-clip-text text-transparent">
-              anything
-            </span>
-            .
+            <span className="gradient-text">anything</span>
+            <span className="text-zinc-100">.</span>
           </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-relaxed text-stone-600">
-            Multimodal agent — submit a claim as text, an image (screenshot,
-            chart, infographic), or both. Retrieves real web evidence, scores
-            it with a fine-tuned NLI model, and returns an auditable verdict
-            with a plain-English explanation.
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-zinc-400">
+            Submit a claim as text or an image. An AI agent decomposes it,
+            retrieves real web evidence, scores it with a fine-tuned NLI
+            model, and writes a plain-English verdict citing the sources.
           </p>
         </section>
 
         {/* Input card */}
-        <section className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+        <section className="glass animate-fade-up rounded-2xl p-6">
           <label
             htmlFor="claim-input"
-            className="block text-sm font-medium text-stone-700"
+            className="block text-sm font-medium text-zinc-200"
           >
-            Your claim {imageFile && <span className="text-stone-400">(optional — image will be analyzed)</span>}
+            Your claim{" "}
+            {imageFile && (
+              <span className="text-zinc-500">
+                (optional — image will be analyzed)
+              </span>
+            )}
           </label>
           <textarea
             id="claim-input"
@@ -335,11 +355,11 @@ export default function Home() {
             disabled={loading}
             placeholder={
               imageFile
-                ? "Optional context about the image (e.g. 'tweet by X saying Y')"
+                ? "Optional context about the image"
                 : "e.g. Humans only use 10 percent of their brain"
             }
             rows={3}
-            className="mt-2 w-full resize-none rounded-lg border border-stone-300 bg-white px-4 py-3 text-stone-900 placeholder:text-stone-400 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/15 disabled:bg-stone-50"
+            className="mt-2 w-full resize-none rounded-lg border border-white/10 bg-zinc-900/60 px-4 py-3 text-zinc-100 placeholder:text-zinc-500 focus:border-indigo-400 focus:outline-none focus:ring-4 focus:ring-indigo-500/20 disabled:opacity-60"
           />
 
           {/* Image input row */}
@@ -357,7 +377,7 @@ export default function Home() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
-                className="inline-flex items-center gap-2 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-xs font-medium text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-xs font-medium text-zinc-300 transition hover:border-white/20 hover:bg-zinc-800/80 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -376,27 +396,27 @@ export default function Home() {
                 Add image (screenshot, chart, infographic)
               </button>
             ) : (
-              <div className="flex items-start gap-3 rounded-lg border border-stone-200 bg-stone-50 p-3">
+              <div className="flex items-start gap-3 rounded-lg border border-white/10 bg-zinc-900/60 p-3">
                 {imagePreview && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={imagePreview}
                     alt="claim preview"
-                    className="h-20 w-20 shrink-0 rounded-md border border-stone-200 object-cover"
+                    className="h-20 w-20 shrink-0 rounded-md border border-white/10 object-cover"
                   />
                 )}
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-medium text-stone-900">
+                  <p className="truncate text-xs font-medium text-zinc-200">
                     {imageFile.name}
                   </p>
-                  <p className="mt-0.5 font-mono text-[11px] text-stone-500">
+                  <p className="mt-0.5 font-mono text-[11px] text-zinc-500">
                     {imageFile.type} · {(imageFile.size / 1024).toFixed(0)} KB
                   </p>
                   <button
                     type="button"
                     onClick={() => handleFileSelect(null)}
                     disabled={loading}
-                    className="mt-2 text-xs font-medium text-rose-600 hover:text-rose-700 disabled:opacity-50"
+                    className="mt-2 text-xs font-medium text-rose-400 transition hover:text-rose-300 disabled:opacity-50"
                   >
                     Remove
                   </button>
@@ -407,14 +427,14 @@ export default function Home() {
 
           {/* Example chips */}
           <div className="mt-4 flex flex-wrap gap-2">
-            <span className="text-xs font-medium text-stone-500">Try:</span>
+            <span className="text-xs font-medium text-zinc-500">Try:</span>
             {EXAMPLE_CLAIMS.map((ex) => (
               <button
                 key={ex}
                 type="button"
                 onClick={() => !loading && submit(ex)}
                 disabled={loading}
-                className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-xs text-stone-700 transition hover:border-stone-300 hover:bg-stone-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="rounded-full border border-white/10 bg-zinc-900/60 px-3 py-1 text-xs text-zinc-300 transition hover:border-white/20 hover:bg-zinc-800/80 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {ex}
               </button>
@@ -422,38 +442,42 @@ export default function Home() {
           </div>
 
           <div className="mt-5 flex items-center justify-between gap-4">
-            <p className="text-xs text-stone-500">
-              ~30s per claim · DDG retrieval + DeBERTa NLI on free-tier CPU
+            <p className="text-xs text-zinc-500">
+              ~30s per claim · DDG + DeBERTa NLI on free-tier CPU
             </p>
             <button
               onClick={() => submit()}
               disabled={!canSubmit}
-              className="shrink-0 rounded-lg bg-stone-900 px-6 py-2.5 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800 disabled:cursor-not-allowed disabled:bg-stone-300"
+              className="group relative shrink-0 overflow-hidden rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-6 py-2.5 text-sm font-medium text-white shadow-[0_0_30px_-8px_rgba(129,140,248,0.6)] transition hover:from-indigo-400 hover:to-fuchsia-400 hover:shadow-[0_0_40px_-6px_rgba(217,70,239,0.7)] disabled:cursor-not-allowed disabled:from-zinc-700 disabled:to-zinc-700 disabled:text-zinc-500 disabled:shadow-none"
             >
-              {loading ? "Checking…" : "Fact-check"}
+              <span className="relative z-10">
+                {loading ? "Checking…" : "Fact-check"}
+              </span>
             </button>
           </div>
         </section>
 
         {/* Error */}
         {error && (
-          <section className="mt-4 animate-fade-up rounded-xl border border-rose-200 bg-rose-50 p-4">
-            <p className="text-sm font-medium text-rose-900">
+          <section className="mt-4 animate-fade-up rounded-xl border border-rose-500/30 bg-rose-500/10 p-4 backdrop-blur-sm">
+            <p className="text-sm font-medium text-rose-300">
               Something went wrong
             </p>
-            <p className="mt-1 break-words text-xs text-rose-800">{error}</p>
+            <p className="mt-1 break-words text-xs text-rose-200/80">
+              {error}
+            </p>
           </section>
         )}
 
         {/* Loading — animated agent trace */}
         {loading && (
-          <section className="mt-6 animate-fade-up rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+          <section className="glass animate-fade-up mt-6 rounded-2xl p-6">
             <div className="mb-4 flex items-center gap-2">
-              <span className="block h-2 w-2 animate-pulse-dot rounded-full bg-indigo-500" />
-              <p className="text-sm font-medium text-stone-900">
+              <span className="block h-2 w-2 animate-pulse-dot rounded-full bg-indigo-400" />
+              <p className="text-sm font-medium text-zinc-200">
                 Agent working
                 {imageFile && (
-                  <span className="ml-2 rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                  <span className="ml-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-xs font-medium text-indigo-300">
                     multimodal
                   </span>
                 )}
@@ -466,34 +490,39 @@ export default function Home() {
                 return (
                   <li
                     key={step.label}
-                    className={`flex items-start gap-3 rounded-lg p-2 transition ${
-                      active ? "bg-indigo-50" : ""
+                    className={`relative flex items-start gap-3 overflow-hidden rounded-lg p-2.5 transition ${
+                      active
+                        ? "border border-indigo-500/30 bg-indigo-500/10"
+                        : "border border-transparent"
                     }`}
                   >
+                    {active && (
+                      <span className="shimmer pointer-events-none absolute inset-0" />
+                    )}
                     <span
-                      className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-xs ${
+                      className={`relative mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-xs ${
                         done
-                          ? "bg-indigo-600 text-white"
+                          ? "bg-indigo-500 text-white shadow-[0_0_12px_-2px_rgba(129,140,248,0.8)]"
                           : active
-                            ? "bg-indigo-100 text-indigo-700"
-                            : "bg-stone-100 text-stone-400"
+                            ? "border border-indigo-500/50 bg-indigo-500/20 text-indigo-200"
+                            : "border border-white/10 bg-zinc-900/60 text-zinc-500"
                       }`}
                     >
                       {done ? "✓" : i + 1}
                     </span>
-                    <div className="min-w-0">
+                    <div className="relative min-w-0">
                       <p
                         className={`text-sm font-medium ${
                           active
-                            ? "text-indigo-900"
+                            ? "text-indigo-200"
                             : done
-                              ? "text-stone-700"
-                              : "text-stone-400"
+                              ? "text-zinc-300"
+                              : "text-zinc-500"
                         }`}
                       >
                         {step.label}
                       </p>
-                      <p className="text-xs text-stone-500">{step.desc}</p>
+                      <p className="text-xs text-zinc-500">{step.desc}</p>
                     </div>
                   </li>
                 );
@@ -504,36 +533,46 @@ export default function Home() {
 
         {/* Result */}
         {result && (
-          <section className="mt-6 animate-fade-up space-y-6">
+          <section className="mt-6 space-y-6">
             {/* Verdict hero card */}
             <div
-              className={`rounded-2xl border-2 p-6 shadow-sm ${verdictStyles(result.verdict).card}`}
+              className={`glass animate-fade-up rounded-2xl p-6 ${verdictStyles(result.verdict).glow}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/60 font-mono text-xl">
+                    <span
+                      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ring-2 ${verdictStyles(result.verdict).ring} bg-zinc-900/60 font-mono text-2xl ${verdictStyles(result.verdict).accent}`}
+                    >
                       {verdictIcon(result.verdict)}
                     </span>
-                    <h2 className="text-3xl font-semibold tracking-tight">
-                      {result.verdict}
-                    </h2>
+                    <div>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                        Verdict
+                      </p>
+                      <h2
+                        className={`text-3xl font-bold tracking-tight ${verdictStyles(result.verdict).text}`}
+                      >
+                        {result.verdict}
+                      </h2>
+                    </div>
                     {result.was_multimodal && (
-                      <span className="rounded-full bg-white/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider">
+                      <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-indigo-300">
                         multimodal
                       </span>
                     )}
                   </div>
-                  <p className="mt-2 text-sm opacity-80">{result.reason}</p>
+                  <p className="mt-3 text-sm text-zinc-400">{result.reason}</p>
                 </div>
-                <div className="shrink-0 text-right font-mono text-xs opacity-75">
-                  <div className="tabular-nums">
-                    {Math.round(result.confidence * 100)}%
+                <div className="shrink-0 text-right">
+                  <div className="font-mono text-3xl font-semibold tabular-nums text-zinc-100">
+                    {Math.round(result.confidence * 100)}
+                    <span className="text-lg text-zinc-500">%</span>
                   </div>
-                  <div className="mt-0.5 text-[10px] uppercase tracking-wider">
+                  <div className="mt-0.5 text-[10px] uppercase tracking-wider text-zinc-500">
                     confidence
                   </div>
-                  <div className="mt-2 tabular-nums">
+                  <div className="mt-3 font-mono text-xs tabular-nums text-zinc-500">
                     {(result.duration_ms / 1000).toFixed(1)}s
                   </div>
                 </div>
@@ -549,16 +588,16 @@ export default function Home() {
                         key={cls}
                         className="flex items-center gap-3 text-xs"
                       >
-                        <span className="w-28 shrink-0 font-medium">
+                        <span className="w-28 shrink-0 font-medium text-zinc-300">
                           {cls}
                         </span>
-                        <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/50">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800/80">
                           <div
-                            className={`h-full transition-all duration-700 ${verdictStyles(cls).bar}`}
+                            className={`h-full transition-all duration-1000 ease-out ${verdictStyles(cls).bar}`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
-                        <span className="w-12 text-right font-mono tabular-nums">
+                        <span className="w-12 text-right font-mono tabular-nums text-zinc-400">
                           {pct.toFixed(1)}%
                         </span>
                       </div>
@@ -570,7 +609,7 @@ export default function Home() {
 
             {/* Summary — plain-English explanation */}
             {result.summary && (
-              <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+              <div className="glass animate-fade-up rounded-2xl p-6 [animation-delay:80ms]">
                 <div className="mb-3 flex items-center gap-2">
                   <svg
                     viewBox="0 0 24 24"
@@ -579,7 +618,7 @@ export default function Home() {
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    className="h-4 w-4 text-indigo-600"
+                    className="h-4 w-4 text-indigo-400"
                     aria-hidden
                   >
                     <path d="M14 4.1V2H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-9.9" />
@@ -587,11 +626,11 @@ export default function Home() {
                     <path d="M8 13h6" />
                     <path d="M8 17h8" />
                   </svg>
-                  <h3 className="text-xs font-medium uppercase tracking-wider text-stone-500">
+                  <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
                     Summary
                   </h3>
                 </div>
-                <div className="space-y-3 text-[15px] leading-relaxed text-stone-800">
+                <div className="space-y-4 text-[15px] leading-relaxed text-zinc-300">
                   {result.summary
                     .split(/\n\n+/)
                     .filter((p) => p.trim().length > 0)
@@ -604,18 +643,18 @@ export default function Home() {
 
             {/* Sub-claims (only when >1) */}
             {result.sub_results.length > 1 && (
-              <div>
-                <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-stone-500">
+              <div className="animate-fade-up [animation-delay:160ms]">
+                <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
                   Sub-claims · {result.sub_results.length}
                 </h3>
                 <div className="space-y-2">
                   {result.sub_results.map((sr, i) => (
                     <div
                       key={i}
-                      className="rounded-xl border border-stone-200 bg-white p-4 shadow-sm"
+                      className="glass rounded-xl p-4"
                     >
                       <div className="flex items-start justify-between gap-4">
-                        <p className="text-sm text-stone-900">
+                        <p className="text-sm text-zinc-200">
                           &ldquo;{sr.sub_claim}&rdquo;
                         </p>
                         <span
@@ -627,9 +666,7 @@ export default function Home() {
                           </span>
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-stone-500">
-                        {sr.reason}
-                      </p>
+                      <p className="mt-2 text-xs text-zinc-500">{sr.reason}</p>
                     </div>
                   ))}
                 </div>
@@ -637,9 +674,9 @@ export default function Home() {
             )}
 
             {/* Top evidence */}
-            <div>
-              <h3 className="mb-3 text-xs font-medium uppercase tracking-wider text-stone-500">
-                Evidence
+            <div className="animate-fade-up [animation-delay:240ms]">
+              <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                Evidence · {result.sub_results.flatMap((sr) => sr.top_evidence).length} sources
               </h3>
               <div className="space-y-3">
                 {result.sub_results
@@ -651,8 +688,8 @@ export default function Home() {
                       href={ev.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      style={{ animationDelay: `${i * 80}ms` }}
-                      className="animate-fade-up block rounded-xl border border-stone-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-md"
+                      style={{ animationDelay: `${320 + i * 60}ms` }}
+                      className="glass animate-fade-up block rounded-xl p-4 transition hover:-translate-y-0.5 hover:bg-zinc-900/80 hover:shadow-[0_10px_30px_-15px_rgba(129,140,248,0.4)]"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex min-w-0 items-start gap-3">
@@ -663,16 +700,16 @@ export default function Home() {
                             aria-hidden
                             width={20}
                             height={20}
-                            className="mt-0.5 h-5 w-5 shrink-0 rounded-sm bg-stone-100"
+                            className="mt-0.5 h-5 w-5 shrink-0 rounded-sm bg-white/10"
                             onError={(e) => {
                               (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
                             }}
                           />
                           <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-stone-900">
+                            <p className="truncate text-sm font-medium text-zinc-100">
                               {ev.title}
                             </p>
-                            <p className="mt-0.5 truncate font-mono text-[11px] text-stone-500">
+                            <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-500">
                               {domain(ev.url)}
                             </p>
                           </div>
@@ -680,32 +717,32 @@ export default function Home() {
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
                             ev.source_is_fulltext
-                              ? "bg-stone-100 text-stone-600"
-                              : "bg-amber-50 text-amber-700"
+                              ? "bg-zinc-800/60 text-zinc-400"
+                              : "bg-amber-500/10 text-amber-300"
                           }`}
                         >
                           {ev.source_is_fulltext ? "fulltext" : "snippet"}
                         </span>
                       </div>
-                      <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-stone-700">
+                      <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-zinc-300">
                         {ev.snippet}
                       </p>
-                      <div className="mt-3 flex gap-4 font-mono text-[11px] tabular-nums text-stone-500">
+                      <div className="mt-3 flex gap-4 font-mono text-[11px] tabular-nums text-zinc-500">
                         <span>
                           entail{" "}
-                          <span className="font-semibold text-emerald-700">
+                          <span className="font-semibold text-emerald-400">
                             {(ev.entailment * 100).toFixed(0)}%
                           </span>
                         </span>
                         <span>
                           neutral{" "}
-                          <span className="font-semibold text-stone-600">
+                          <span className="font-semibold text-zinc-400">
                             {(ev.neutral * 100).toFixed(0)}%
                           </span>
                         </span>
                         <span>
                           contra{" "}
-                          <span className="font-semibold text-rose-700">
+                          <span className="font-semibold text-rose-400">
                             {(ev.contradiction * 100).toFixed(0)}%
                           </span>
                         </span>
@@ -718,65 +755,76 @@ export default function Home() {
         )}
 
         {/* How factforge works — agent architecture explainer */}
-        <section className="mt-20">
-          <h2 className="text-xs font-medium uppercase tracking-wider text-stone-500">
+        <section className="mt-24">
+          <h2 className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
             How it works
           </h2>
-          <p className="mt-2 text-lg font-medium text-stone-900">
-            Five specialized models in a graph, not one black-box LLM.
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-zinc-100">
+            Five specialized stages in a graph.
+            <span className="block text-zinc-500">
+              Not one black-box LLM.
+            </span>
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[
               {
-                num: "1",
+                num: "01",
                 label: "Decompose",
                 desc: "Splits compound claims into atomic, individually-verifiable sub-claims. Handles image inputs.",
-                tech: "Gemini 2.5 Flash · vision",
-                tint: "from-indigo-500/10 to-indigo-500/0",
+                tech: "Gemini · vision",
+                color: "from-indigo-500/30 to-indigo-500/0",
+                ring: "ring-indigo-500/30",
               },
               {
-                num: "2",
+                num: "02",
                 label: "Retrieve",
-                desc: "Two web queries per sub-claim (raw + fact-check-biased). Page text extracted in parallel.",
+                desc: "Two web queries per sub-claim (raw + fact-check-biased). Pages fetched + cleaned in parallel.",
                 tech: "DuckDuckGo · no API key",
-                tint: "from-sky-500/10 to-sky-500/0",
+                color: "from-sky-500/30 to-sky-500/0",
+                ring: "ring-sky-500/30",
               },
               {
-                num: "3",
+                num: "03",
                 label: "Verify",
-                desc: "Scores each (evidence, sub-claim) pair as entail / neutral / contradict.",
+                desc: "Scores each (snippet, claim) pair: entail / neutral / contradict.",
                 tech: "DeBERTa-v3-large MNLI+FEVER",
-                tint: "from-violet-500/10 to-violet-500/0",
+                color: "from-violet-500/30 to-violet-500/0",
+                ring: "ring-violet-500/30",
               },
               {
-                num: "4",
+                num: "04",
                 label: "Synthesize",
                 desc: "Topical-relevance gate + claim-weighted max/mean blend → normalized 3-class verdict.",
                 tech: "deterministic aggregation",
-                tint: "from-amber-500/10 to-amber-500/0",
+                color: "from-amber-500/30 to-amber-500/0",
+                ring: "ring-amber-500/30",
               },
               {
-                num: "5",
+                num: "05",
                 label: "Summarize",
-                desc: "Generates the plain-English explanation citing named sources.",
-                tech: "Gemini 2.5 Flash",
-                tint: "from-rose-500/10 to-rose-500/0",
+                desc: "Writes the plain-English explanation citing named sources.",
+                tech: "Gemini",
+                color: "from-rose-500/30 to-rose-500/0",
+                ring: "ring-rose-500/30",
               },
             ].map((step) => (
               <div
                 key={step.num}
-                className={`relative overflow-hidden rounded-xl border border-stone-200 bg-gradient-to-br ${step.tint} bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md`}
+                className={`glass group relative overflow-hidden rounded-xl p-4 transition hover:-translate-y-0.5 hover:ring-1 ${step.ring}`}
               >
-                <div className="font-mono text-xs font-medium text-stone-400">
-                  0{step.num}
+                <div
+                  className={`absolute inset-0 -z-10 bg-gradient-to-br ${step.color} opacity-50 transition group-hover:opacity-100`}
+                />
+                <div className="font-mono text-xs font-medium text-zinc-500">
+                  {step.num}
                 </div>
-                <h3 className="mt-1 text-sm font-semibold text-stone-900">
+                <h3 className="mt-1 text-sm font-semibold text-zinc-100">
                   {step.label}
                 </h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-stone-600">
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-400">
                   {step.desc}
                 </p>
-                <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-stone-400">
+                <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
                   {step.tech}
                 </p>
               </div>
@@ -785,18 +833,18 @@ export default function Home() {
         </section>
 
         {/* Footer */}
-        <footer className="mt-16 border-t border-stone-200 pt-6 text-center">
-          <p className="text-xs text-stone-500">
+        <footer className="mt-20 border-t border-white/5 pt-6 text-center">
+          <p className="text-xs text-zinc-500">
             Built by{" "}
             <a
               href="https://github.com/asutoshpaluri"
-              className="font-medium text-stone-700 hover:text-stone-900"
+              className="font-medium text-zinc-300 transition hover:text-zinc-100"
             >
               Asutosh Paluri
             </a>{" "}
             · MS Computational Linguistics, UNT 2026
           </p>
-          <p className="mt-2 text-[11px] text-stone-400">
+          <p className="mt-2 text-[11px] text-zinc-600">
             Research demo. Not journalism. Do not use to fact-check named
             individuals.
           </p>

@@ -1,0 +1,392 @@
+{
+  "config": {
+    "n": 30,
+    "seed": 42,
+    "api_url": "http://127.0.0.1:8000/api/v1/claims",
+    "fever_path": "/Users/asutoshpaluri/Documents/FEVER Dataset/shared_task_dev.jsonl",
+    "total_wall_clock_s": 347.1529939174652
+  },
+  "metrics": {
+    "n_total": 30,
+    "n_successful": 6,
+    "n_errors": 24,
+    "accuracy": 0.6666666666666666,
+    "macro_f1": 0.5555555555555555,
+    "per_class": {
+      "Real": {
+        "precision": 0.5,
+        "recall": 1.0,
+        "f1": 0.6666666666666666,
+        "support": 2
+      },
+      "Misinformation": {
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "support": 2
+      },
+      "Disinformation": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 2
+      }
+    },
+    "confusion": {
+      "Real": {
+        "Real": 2,
+        "Misinformation": 0,
+        "Disinformation": 0
+      },
+      "Misinformation": {
+        "Real": 2,
+        "Misinformation": 0,
+        "Disinformation": 0
+      },
+      "Disinformation": {
+        "Real": 0,
+        "Misinformation": 0,
+        "Disinformation": 2
+      }
+    },
+    "latency": {
+      "mean_s": 37.67733333333334,
+      "p50_s": 38.394,
+      "p95_s": 58.154,
+      "min_s": 27.056,
+      "max_s": 58.154
+    }
+  },
+  "results": [
+    {
+      "id": 116870,
+      "claim": "A River Runs Through It has been nominated for an Oscar.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.6261,
+      "duration_ms": 38394,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 175870,
+      "claim": "Chris Mullin played with a professional basketball team in the 1990s.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.9868,
+      "duration_ms": 38746,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 64590,
+      "claim": "Mutiny on the Bounty was adapted exactly once into a movie.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.9938,
+      "duration_ms": 34421,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 111745,
+      "claim": "Nate Diaz competed in California for Strikeforce.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.6999,
+      "duration_ms": 58154,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 213949,
+      "claim": "Gray Matter Interactive Studios, Inc. was a person.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.9995,
+      "duration_ms": 27056,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 205089,
+      "claim": "The Little Prince (2015 film) is a 3D animated television show.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5131.169080734253,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 131295,
+      "claim": "Tatum O'Neal spent her life single.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5225.021123886108,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 154191,
+      "claim": "Talulah Riley appeared in Worcester.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5129.93311882019,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 44900,
+      "claim": "The Ellen Show was created by an act of providence.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5002.663373947144,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 46059,
+      "claim": "An exampled of a folk hero was Bhagat Singh.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9608,
+      "duration_ms": 29293,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 154156,
+      "claim": "Fred Seibert only produces for satellite television.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5094.062805175781,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 161566,
+      "claim": "Baz Luhrmann's film Waluigi is an epic historical romantic drama.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5057.610034942627,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 173609,
+      "claim": "After its revival in 2009 Hair (musical) won a Tony.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5004.232883453369,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 79639,
+      "claim": "Rob Sheridan was born in 1976.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5085.698127746582,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 28324,
+      "claim": "Muscarinic acetylcholine receptors are actylcholine receptors.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5007.372856140137,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 207332,
+      "claim": "Military deception is a form of disinformation.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4943.1939125061035,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 13313,
+      "claim": "Sean Penn was in Vietnam.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4938.881874084473,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 173505,
+      "claim": "Sancho Panza is a character in a novel written by an author.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5073.470830917358,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 121468,
+      "claim": "Homo sapiens are on the IUCN Red List.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4936.279058456421,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 223674,
+      "claim": "Ludwig van Beethoven was abandoned by his father Johann van Beethoven and Christian Gottlob Neefe.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4974.453687667847,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 53475,
+      "claim": "Guns N' Roses started in 1980.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5073.98796081543,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 211865,
+      "claim": "See.SZA.Run is influenced by Jay-Z and Lil Kim.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5079.421043395996,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 17423,
+      "claim": "Baloch people are part of a diverse Indo-European ethno-linguistic group and they are cultured.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5076.560020446777,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 5578,
+      "claim": "Australia (2008 film) production took place in Kununurra.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4975.302934646606,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 72194,
+      "claim": "Mellila is a city.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4988.700866699219,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 20603,
+      "claim": "Yemen does not have an area of 203,850 square miles.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5027.595996856689,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 208157,
+      "claim": "Easy A is written by a stork.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5057.711124420166,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 221129,
+      "claim": "Ted Cruz has only ever been a plumber his whole life.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5129.276752471924,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 93610,
+      "claim": "Britt Robertson is an entertainer.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 4962.373733520508,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    },
+    {
+      "id": 218249,
+      "claim": "Libya is a country outside of Africa.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": null,
+      "confidence": 0.0,
+      "duration_ms": 5010.959148406982,
+      "correct": false,
+      "error": "HTTPStatusError: Server error '500 Internal Server Error' for url 'http://127.0.0.1:8000/api/v1/claims'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/500"
+    }
+  ]
+}
