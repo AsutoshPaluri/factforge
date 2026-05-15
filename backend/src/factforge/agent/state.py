@@ -42,6 +42,22 @@ class AgentState(TypedDict, total=False):
     image_bytes: bytes | None
     image_mime: str | None
 
+    # --- Refinement input ---
+    # Optional user feedback on a previous verdict for this claim. When
+    # present, the decomposer factors it into the new sub-claim breakdown
+    # and downstream retrieval bypasses the evidence cache so the agent
+    # can actually fetch different sources.
+    feedback: str | None
+
+    # --- Memory-augmented learning ---
+    # Optional aggregated feedback from past users on semantically similar
+    # claims, looked up via pgvector before the agent runs. Format:
+    #   "- 'comment text' (from similar claim 'X', sim 0.82)"
+    # The decomposer factors this in alongside (or instead of) the current
+    # user's feedback. This is what makes the agent "improve from
+    # historical traffic" — bad feedback compounds across users.
+    learned_feedback: str | None
+
     # --- Decomposer output ---
     sub_claims: list[str]
 

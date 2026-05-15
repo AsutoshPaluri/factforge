@@ -95,6 +95,21 @@ class SubClaimOut(BaseModel):
 class ClaimResponse(BaseModel):
     """POST /api/v1/claims response body."""
 
+    claim_id: str | None = Field(
+        default=None,
+        description=(
+            "UUID of this verdict in the claims table. Use this to POST "
+            "feedback or refine. None if DB persistence failed (degrades "
+            "gracefully — verdict still returned)."
+        ),
+    )
+    parent_claim_id: str | None = Field(
+        default=None,
+        description=(
+            "If this verdict is a refinement of a previous one, this is the "
+            "original's claim_id. None for first-pass verdicts."
+        ),
+    )
     claim: str
     sub_claims: list[str]
     verdict: Verdict
@@ -114,4 +129,41 @@ class ClaimResponse(BaseModel):
     was_multimodal: bool = Field(
         default=False,
         description="True if an image was provided as input.",
+    )
+
+
+# ---------------------------------------------------------------------------
+# Feedback / refinement
+# ---------------------------------------------------------------------------
+class FeedbackRequest(BaseModel):
+    """POST /api/v1/claims/{id}/feedback body."""
+
+    kind: Literal["good", "bad"]
+    comment: str | None = Field(default=None, max_length=500)
+
+
+class FeedbackResponse(BaseModel):
+    """POST /api/v1/claims/{id}/feedback response."""
+
+    ok: bool
+    feedback_id: str
+
+
+class RefineRequest(BaseModel):
+    """POST /api/v1/claims/{id}/refine body.
+
+    `feedback` is the natural-language note from the user explaining what
+    they think went wrong. The agent uses this to re-decompose + re-retrieve,
+    producing a new verdict whose parent_claim_id points back to the
+    original.
+    """
+
+    feedback: str = Field(
+        min_length=10,
+        max_length=500,
+        description=(
+            "What the user thinks the previous verdict got wrong, or what "
+            "they want the agent to consider this time. Free-form, 10-500 "
+            "chars."
+        ),
     )

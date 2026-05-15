@@ -23,11 +23,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     # Lazy import so module-level `from factforge.main import app` (e.g. in
     # test_health.py) doesn't pull torch + transformers just to test routes.
+    from factforge.clients.embeddings import get_embedder
     from factforge.clients.nli import get_verifier
 
     logger.info("lifespan_startup", version=__version__)
     verifier = await get_verifier()
     await verifier.warmup()
+    embedder = get_embedder()
+    await embedder.warmup()
     logger.info("lifespan_ready")
 
     yield

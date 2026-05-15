@@ -27,6 +27,8 @@ interface SubResult {
 }
 
 interface ClaimResponse {
+  claim_id: string | null;
+  parent_claim_id: string | null;
   claim: string;
   sub_claims: string[];
   verdict: Verdict;
@@ -38,6 +40,17 @@ interface ClaimResponse {
   duration_ms: number;
   was_multimodal: boolean;
 }
+
+type FeedbackStatus =
+  | { state: "idle" }
+  | { state: "submitting" }
+  | { state: "thanked" }
+  | { state: "error"; message: string };
+
+type RefineStatus =
+  | { state: "idle" }
+  | { state: "submitting" }
+  | { state: "error"; message: string };
 
 const EXAMPLE_CLAIMS = [
   "Humans only use 10% of their brain",
@@ -241,6 +254,16 @@ export default function Home() {
   const [currentStep, setCurrentStep] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Feedback / refinement state — resets every time a new verdict lands
+  const [feedbackKind, setFeedbackKind] = useState<"good" | "bad" | null>(null);
+  const [feedbackComment, setFeedbackComment] = useState("");
+  const [feedbackStatus, setFeedbackStatus] = useState<FeedbackStatus>({
+    state: "idle",
+  });
+  const [refineStatus, setRefineStatus] = useState<RefineStatus>({
+    state: "idle",
+  });
+
   // Animate through agent steps while waiting on the API
   useEffect(() => {
     if (!loading) {
@@ -289,6 +312,13 @@ export default function Home() {
   const canSubmit =
     !loading && (claim.trim().length >= 3 || imageFile !== null);
 
+  const resetFeedbackState = () => {
+    setFeedbackKind(null);
+    setFeedbackComment("");
+    setFeedbackStatus({ state: "idle" });
+    setRefineStatus({ state: "idle" });
+  };
+
   const submit = async (claimToCheck?: string) => {
     const c = (claimToCheck ?? claim).trim();
     if (c.length < 3 && !imageFile) return;
@@ -296,6 +326,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setResult(null);
+    resetFeedbackState();
 
     try {
       let image_b64: string | null = null;
@@ -318,6 +349,88 @@ export default function Home() {
       setResult(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /** POST /claims/{id}/feedback — store thumbs + comment, no agent re-run. */
+  const submitFeedback = async (kind: "good" | "bad") => {
+    if (!result?.claim_id) {
+      setFeedbackStatus({
+        state: "error",
+        message: "No claim_id — feedback can't be saved.",
+      });
+      return;
+    }
+    setFeedbackStatus({ state: "submitting" });
+    try {
+      const res = await fetch(
+        `${API_URL}/api/v1/claims/${result.claim_id}/feedback`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind,
+            comment: feedbackComment.trim() || null,
+          }),
+        },
+      );
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      setFeedbackStatus({ state: "thanked" });
+    } catch (e) {
+      setFeedbackStatus({
+        state: "error",
+        message: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+
+  /** POST /claims/{id}/refine — re-run agent with feedback in context. */
+  const submitRefine = async () => {
+    if (!result?.claim_id) return;
+    const fb = feedbackComment.trim();
+    if (fb.length < 10) {
+      setRefineStatus({
+        state: "error",
+        message: "Please write at least 10 characters of feedback.",
+      });
+      return;
+    }
+    setRefineStatus({ state: "submitting" });
+    setLoading(true);
+    setCurrentStep(0);
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/v1/claims/${result.claim_id}/refine`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ feedback: fb }),
+        },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const msg = body?.detail || `HTTP ${res.status}`;
+        throw new Error(msg);
+      }
+      const data: ClaimResponse = await res.json();
+      setResult(data);
+      // Clear feedback state — but result now has parent_claim_id, which
+      // we render as a "Refined" badge so the user knows what happened.
+      setFeedbackKind(null);
+      setFeedbackComment("");
+      setFeedbackStatus({ state: "idle" });
+      setRefineStatus({ state: "idle" });
+    } catch (e) {
+      setRefineStatus({
+        state: "error",
+        message: e instanceof Error ? e.message : String(e),
+      });
     } finally {
       setLoading(false);
     }
@@ -366,7 +479,7 @@ export default function Home() {
               API
             </a>
             <a
-              href="https://github.com/asutoshpaluri/factforge"
+              href="https://github.com/asutoshpaluri"
               target="_blank"
               rel="noopener noreferrer"
               className="text-zinc-400 transition hover:text-zinc-100"
@@ -620,6 +733,24 @@ export default function Home() {
                     {result.was_multimodal && (
                       <span className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-indigo-300">
                         multimodal
+                      </span>
+                    )}
+                    {result.parent_claim_id && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-fuchsia-500/30 bg-fuchsia-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-fuchsia-300">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2.5}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-2.5 w-2.5"
+                          aria-hidden
+                        >
+                          <path d="M3 12a9 9 0 0 1 15-6.7l3 3" />
+                          <path d="M21 3v6h-6" />
+                        </svg>
+                        refined
                       </span>
                     )}
                   </div>
@@ -941,6 +1072,135 @@ export default function Home() {
                 </>
               );
             })()}
+
+            {/* Feedback bar — collects user signal + can trigger a refine
+                (agent re-runs with feedback in context). The "true agent"
+                piece: human-in-the-loop refinement loop. */}
+            {result.claim_id && (
+              <div className="glass animate-fade-up rounded-2xl p-6 [animation-delay:400ms]">
+                {feedbackStatus.state === "thanked" ? (
+                  <div className="flex items-center gap-2 text-sm text-emerald-300">
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.2}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                      aria-hidden
+                    >
+                      <path d="M20 6 9 17l-5-5" />
+                    </svg>
+                    Thanks — your feedback is recorded.
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between gap-4">
+                      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                        Was this verdict helpful?
+                      </h3>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFeedbackKind("good");
+                            submitFeedback("good");
+                          }}
+                          disabled={feedbackStatus.state === "submitting"}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 ${
+                            feedbackKind === "good"
+                              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                              : "border-white/10 bg-zinc-900/60 text-zinc-300 hover:border-emerald-500/30 hover:text-emerald-300"
+                          }`}
+                        >
+                          <span aria-hidden>👍</span> Looks right
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFeedbackKind("bad")}
+                          disabled={feedbackStatus.state === "submitting"}
+                          className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50 ${
+                            feedbackKind === "bad"
+                              ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                              : "border-white/10 bg-zinc-900/60 text-zinc-300 hover:border-rose-500/30 hover:text-rose-300"
+                          }`}
+                        >
+                          <span aria-hidden>👎</span> Something&rsquo;s off
+                        </button>
+                      </div>
+                    </div>
+
+                    {feedbackKind === "bad" && (
+                      <div className="mt-4 space-y-3">
+                        <label
+                          htmlFor="feedback-input"
+                          className="block text-xs font-medium text-zinc-300"
+                        >
+                          What did the agent miss? <span className="text-zinc-500">(specific feedback gives a better refined verdict)</span>
+                        </label>
+                        <textarea
+                          id="feedback-input"
+                          value={feedbackComment}
+                          onChange={(e) => setFeedbackComment(e.target.value)}
+                          placeholder="e.g. 'you ignored peer-reviewed studies', 'the source on point 2 is unreliable', 'this misreads the claim — it's actually about X'"
+                          rows={2}
+                          maxLength={500}
+                          disabled={
+                            feedbackStatus.state === "submitting" ||
+                            refineStatus.state === "submitting"
+                          }
+                          className="w-full resize-none rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-rose-400/60 focus:outline-none focus:ring-4 focus:ring-rose-500/15 disabled:opacity-50"
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <p className="text-[11px] text-zinc-500">
+                            <span className="text-zinc-400">{feedbackComment.length}/500</span> &middot; min 10 chars to refine
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => submitFeedback("bad")}
+                              disabled={
+                                feedbackStatus.state === "submitting" ||
+                                refineStatus.state === "submitting"
+                              }
+                              className="rounded-lg border border-white/10 bg-zinc-900/60 px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/20 hover:text-zinc-100 disabled:opacity-50"
+                            >
+                              {feedbackStatus.state === "submitting"
+                                ? "Saving…"
+                                : "Just submit feedback"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={submitRefine}
+                              disabled={
+                                refineStatus.state === "submitting" ||
+                                feedbackComment.trim().length < 10
+                              }
+                              className="rounded-lg bg-gradient-to-r from-indigo-500 to-fuchsia-500 px-3 py-1.5 text-xs font-medium text-white shadow-[0_0_20px_-6px_rgba(129,140,248,0.6)] transition hover:from-indigo-400 hover:to-fuchsia-400 disabled:cursor-not-allowed disabled:from-zinc-700 disabled:to-zinc-700 disabled:text-zinc-500 disabled:shadow-none"
+                            >
+                              {refineStatus.state === "submitting"
+                                ? "Refining…"
+                                : "Refine verdict ↻"}
+                            </button>
+                          </div>
+                        </div>
+                        {feedbackStatus.state === "error" && (
+                          <p className="text-xs text-rose-300">
+                            {feedbackStatus.message}
+                          </p>
+                        )}
+                        {refineStatus.state === "error" && (
+                          <p className="text-xs text-rose-300">
+                            {refineStatus.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </section>
         )}
 
