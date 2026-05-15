@@ -24,14 +24,14 @@ _MAX_SNIPPET_CHARS = 350
 
 
 class _SummaryOutput(BaseModel):
-    """Structured output schema enforced via Gemini's response_schema."""
+    """Structured output schema for the verdict explanation."""
 
     summary: str = Field(
         description=(
-            "2-3 paragraph plain-English explanation of the verdict. "
-            "Cite specific named sources by name (e.g. 'NASA', 'Britannica', "
-            "'MIT McGovern Institute'). Factual, neutral tone. No bullet "
-            "points - write as flowing prose. Target 150-300 words total."
+            "Google-AI-Overview-style markdown explanation: a lead sentence, "
+            "then 'Key reasons:' followed by 3-5 bulleted facts with **bold "
+            "lead-ins**, then optional closing context. Cite named sources "
+            "like *NASA* or *Britannica*. 150-300 words."
         ),
         min_length=80,
         max_length=2500,
@@ -71,30 +71,58 @@ def _format_evidence_block(sub_results: list) -> str:
 
 
 _PROMPT = """\
-You are writing a brief, factual explanation of a fact-check verdict for the
-user who submitted the claim. They want to understand WHY this verdict and
-WHAT the evidence actually says.
+You are writing a fact-check explanation in the style of Google's AI Overview
+— scannable, with a clear lead, bulleted key reasons, and named sources.
 
-Original claim: "{claim}"
-Final verdict: {verdict} ({confidence:.0%} confidence)
+Claim: "{claim}"
+Verdict: {verdict} ({confidence:.0%} confidence)
 
 Evidence retrieved and scored against the claim:
 {evidence_block}
 
-Write a 2-3 paragraph explanation:
-- Paragraph 1: State the verdict and the most important reason.
-- Paragraph 2: What the evidence actually says. Cite specific NAMED sources
-  (e.g. "MIT McGovern Institute", "NASA", "Britannica", "the CDC"). Briefly
-  quote or paraphrase the most informative excerpts.
-- Paragraph 3 (optional, only if useful): Origin of the claim, why it
-  persists, or context the reader should know.
+OUTPUT FORMAT (markdown — render exactly this structure):
 
-Hard rules:
-- Tone is factual and neutral. No editorializing, no moralizing.
-- No bullet points; flow as prose.
-- No "as an AI" or meta-commentary about the verdict process.
-- Do NOT make up sources or citations - only use what's in the evidence above.
-- Target length: 150-300 words.
+1. LEAD PARAGRAPH (1-2 sentences):
+   - State the answer directly. Reference 1-2 named sources from the
+     evidence above (e.g. "According to *NASA*..." or "*Britannica*
+     documents that...").
+   - A reader should know the answer from this paragraph alone.
+
+2. EMPTY LINE, then "Key reasons:" on its own line, then EMPTY LINE.
+
+3. 3-5 BULLETS. Each bullet:
+   - starts with "- "
+   - opens with a **bold lead-in** of 1-4 words followed by ":"
+   - then 1-2 sentence explanation
+   - cite a specific named source where relevant (e.g. "per *NASA*",
+     "*MIT McGovern Institute* notes...")
+
+4. OPTIONAL CLOSING PARAGRAPH (1-2 sentences). Only if it adds real
+   value — origin of the misconception, why it persists, when first
+   disproven, etc. Skip if not relevant.
+
+EXAMPLE OUTPUT (for "Earth is flat"):
+
+The claim that Earth is flat is unambiguously disinformation. *NASA* and
+*Britannica* both document that Earth is an oblate spheroid, slightly
+bulged at the equator, as confirmed by direct observation from space.
+
+Key reasons:
+
+- **Ships over the horizon:** As ships sail away they disappear from the bottom up — a visible sign of Earth's curvature noted since antiquity.
+- **Lunar eclipses:** Earth casts a circular shadow on the Moon during every lunar eclipse, geometrically only possible for a sphere.
+- **Satellite imagery:** Tens of thousands of satellites and direct photographs from space confirm Earth's spherical shape, per *NASA*.
+- **Gravity:** A flat disk would pull objects toward its center, not toward the ground — *USA Today*.
+
+The flat-Earth idea persists today primarily as conspiracy content
+despite being scientifically disproven for over two millennia.
+
+RULES:
+- Cite REAL named sources from the evidence above. Never invent.
+- Factual, neutral tone. No moralizing, no exclamations.
+- No "as an AI" or meta-commentary.
+- Plain markdown only. No code fences, no headings (no ###).
+- 150-300 words total.
 """
 
 

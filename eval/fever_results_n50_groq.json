@@ -1,0 +1,612 @@
+{
+  "config": {
+    "n": 50,
+    "seed": 42,
+    "api_url": "http://127.0.0.1:8000/api/v1/claims",
+    "fever_path": "/Users/asutoshpaluri/Documents/FEVER Dataset/shared_task_dev.jsonl",
+    "total_wall_clock_s": 1696.5126039981842
+  },
+  "metrics": {
+    "n_total": 50,
+    "n_successful": 50,
+    "n_errors": 0,
+    "accuracy": 0.7,
+    "macro_f1": 0.6647426647426647,
+    "per_class": {
+      "Real": {
+        "precision": 0.64,
+        "recall": 0.9411764705882353,
+        "f1": 0.7619047619047621,
+        "support": 17
+      },
+      "Misinformation": {
+        "precision": 0.8333333333333334,
+        "recall": 0.3125,
+        "f1": 0.45454545454545453,
+        "support": 16
+      },
+      "Disinformation": {
+        "precision": 0.7368421052631579,
+        "recall": 0.8235294117647058,
+        "f1": 0.7777777777777778,
+        "support": 17
+      }
+    },
+    "confusion": {
+      "Real": {
+        "Real": 16,
+        "Misinformation": 0,
+        "Disinformation": 1
+      },
+      "Misinformation": {
+        "Real": 7,
+        "Misinformation": 5,
+        "Disinformation": 4
+      },
+      "Disinformation": {
+        "Real": 2,
+        "Misinformation": 1,
+        "Disinformation": 14
+      }
+    },
+    "latency": {
+      "mean_s": 33.619440000000004,
+      "p50_s": 30.593,
+      "p95_s": 64.347,
+      "min_s": 21.543,
+      "max_s": 65.775
+    }
+  },
+  "results": [
+    {
+      "id": 224366,
+      "claim": "Southampton F.C. came in third in the First Division.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Misinformation",
+      "confidence": 0.4959,
+      "duration_ms": 34065,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 72194,
+      "claim": "Mellila is a city.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9842,
+      "duration_ms": 31739,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 54761,
+      "claim": "A.J. Styles is a German DJ.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Misinformation",
+      "confidence": 0.7508,
+      "duration_ms": 58407,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 124189,
+      "claim": "On May 19, 1945, Ian Gillan was born.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.9949,
+      "duration_ms": 29247,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 213949,
+      "claim": "Gray Matter Interactive Studios, Inc. was a person.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.9249,
+      "duration_ms": 29838,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 128837,
+      "claim": "Quay premiered in 2001.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.4631,
+      "duration_ms": 30427,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 187582,
+      "claim": "Dan Brown is an American author with five kids.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.7494,
+      "duration_ms": 49851,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 209093,
+      "claim": "Stadium Arcadium was released in or before 1997.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Real",
+      "confidence": 0.9932,
+      "duration_ms": 26760,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 92586,
+      "claim": "Firefox is one of the most popular web browsers.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.5514,
+      "duration_ms": 28406,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 128584,
+      "claim": "Natasha Lyonne is also known as Natasha Rebecca Lyonne Renner.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.6796,
+      "duration_ms": 22958,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 108967,
+      "claim": "Joe Rogan was diabetic.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Misinformation",
+      "confidence": 0.8586,
+      "duration_ms": 31951,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 28324,
+      "claim": "Muscarinic acetylcholine receptors are actylcholine receptors.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9927,
+      "duration_ms": 21543,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 142717,
+      "claim": "A person who was born in August discovered Uranium-235.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.7867,
+      "duration_ms": 65775,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 183447,
+      "claim": "Henry III of France was murdered.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.5831,
+      "duration_ms": 31831,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 79639,
+      "claim": "Rob Sheridan was born in 1976.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.9994,
+      "duration_ms": 24773,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 18256,
+      "claim": "B. R. Ambedkar was called Baba Saheb by his followers.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.9887,
+      "duration_ms": 29995,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 56774,
+      "claim": "Lizzy Caplan bought the DVD collectible for the show Party Down.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Misinformation",
+      "confidence": 0.9606,
+      "duration_ms": 30843,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 54418,
+      "claim": "Paris (Paris Hilton album) incorporates elements of German.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.5347,
+      "duration_ms": 34709,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 211016,
+      "claim": "Resident Evil is an unadapted video game.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.7588,
+      "duration_ms": 50329,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 211786,
+      "claim": "Brick (film) had 2005 viewers.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Misinformation",
+      "confidence": 0.7706,
+      "duration_ms": 64347,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 70310,
+      "claim": "The Maze Runner is a motion picture.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.6373,
+      "duration_ms": 36331,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 191428,
+      "claim": "Keith Urban was released by a Belgian-based record label.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.777,
+      "duration_ms": 30871,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 26289,
+      "claim": "Fist of Legend is a direct sequel to Fist of Fury.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Real",
+      "confidence": 0.5839,
+      "duration_ms": 32086,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 20603,
+      "claim": "Yemen does not have an area of 203,850 square miles.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Disinformation",
+      "confidence": 0.556,
+      "duration_ms": 30124,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 57989,
+      "claim": "Arjit Singh is an Indian male musician.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.9156,
+      "duration_ms": 51569,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 207332,
+      "claim": "Military deception is a form of disinformation.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9326,
+      "duration_ms": 25523,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 138691,
+      "claim": "Temple Grandin was directed by a Croatian filmmaker.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.7077,
+      "duration_ms": 25825,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 51683,
+      "claim": "Toy Story 2 was released by North Korea.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.7265,
+      "duration_ms": 27004,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 194222,
+      "claim": "Mike Friedrich is only German.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.5155,
+      "duration_ms": 28260,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 46059,
+      "claim": "An exampled of a folk hero was Bhagat Singh.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9375,
+      "duration_ms": 26108,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 225316,
+      "claim": "Michaela Watkins full name is Michaela Suzanne Watkins, the same as her mother.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.8538,
+      "duration_ms": 43427,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 86474,
+      "claim": "Benzodiazepine is a medication.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9992,
+      "duration_ms": 29076,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 195019,
+      "claim": "Girl is by an French singer.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.4472,
+      "duration_ms": 32216,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 121468,
+      "claim": "Homo sapiens are on the IUCN Red List.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9841,
+      "duration_ms": 33388,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 163795,
+      "claim": "Ukrainian Soviet Socialist Republic was a founding member of the UN.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.8495,
+      "duration_ms": 25008,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 195038,
+      "claim": "Girl is by Waluigi.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.7215,
+      "duration_ms": 32527,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 208157,
+      "claim": "Easy A is written by a stork.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.5363,
+      "duration_ms": 31567,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 220470,
+      "claim": "The Church of Jesus Christ of Latter-day Saints has a law of marriage.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.9742,
+      "duration_ms": 27169,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 5578,
+      "claim": "Australia (2008 film) production took place in Kununurra.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9312,
+      "duration_ms": 24236,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 134789,
+      "claim": "Raees (film) stars Nawazuddin Siddiqui as IPS Jaideep Ambalal Majmudar.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.5545,
+      "duration_ms": 35136,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 93610,
+      "claim": "Britt Robertson is an entertainer.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.7366,
+      "duration_ms": 31576,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 125709,
+      "claim": "Shadowhunters began its second season in Zambia.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Misinformation",
+      "confidence": 0.9305,
+      "duration_ms": 26116,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 102745,
+      "claim": "Uganda was not a protectorate.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.7566,
+      "duration_ms": 25576,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 116870,
+      "claim": "A River Runs Through It has been nominated for an Oscar.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.6123,
+      "duration_ms": 24664,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 200262,
+      "claim": "Quentin Tarantino's original screenplay was the basis for the film Natural Born Killers.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.602,
+      "duration_ms": 29730,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 59280,
+      "claim": "The Bengal tiger has spots.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.9915,
+      "duration_ms": 27260,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 200288,
+      "claim": "The screenplay for Natural Born Killers was heavily revised by screenwriter David Veloz.",
+      "fever_label": "NOT ENOUGH INFO",
+      "true_label": "Misinformation",
+      "predicted": "Real",
+      "confidence": 0.8397,
+      "duration_ms": 30593,
+      "correct": false,
+      "error": null
+    },
+    {
+      "id": 61025,
+      "claim": "Road House is only a book.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.556,
+      "duration_ms": 29252,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 173505,
+      "claim": "Sancho Panza is a character in a novel written by an author.",
+      "fever_label": "SUPPORTS",
+      "true_label": "Real",
+      "predicted": "Real",
+      "confidence": 0.9981,
+      "duration_ms": 65449,
+      "correct": true,
+      "error": null
+    },
+    {
+      "id": 126962,
+      "claim": "Chumlee is the stage name of Tom Cruise.",
+      "fever_label": "REFUTES",
+      "true_label": "Disinformation",
+      "predicted": "Disinformation",
+      "confidence": 0.6501,
+      "duration_ms": 35511,
+      "correct": true,
+      "error": null
+    }
+  ]
+}

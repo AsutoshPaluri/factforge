@@ -157,6 +157,67 @@ function renderInlineMarkdown(text: string): React.ReactNode[] {
   });
 }
 
+// Block-level renderer for the summary: handles paragraphs, "Key reasons:"
+// style headers, and dash-bulleted lists with **bold lead-ins**.
+function renderSummary(text: string): React.ReactNode[] {
+  const blocks = text.split(/\n\n+/).filter((b) => b.trim().length > 0);
+  return blocks.map((block, i) => {
+    const lines = block
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+    // List block: every line starts with "- " or "• "
+    if (
+      lines.length > 0 &&
+      lines.every((l) => l.startsWith("- ") || l.startsWith("• "))
+    ) {
+      return (
+        <ul key={i} className="mt-1 space-y-3">
+          {lines.map((line, j) => {
+            const content = line.replace(/^(-|•)\s+/, "");
+            return (
+              <li
+                key={j}
+                className="flex gap-3 text-[15px] leading-relaxed text-zinc-300"
+              >
+                <span
+                  className="mt-2.5 block h-[5px] w-[5px] shrink-0 rounded-full bg-indigo-400"
+                  aria-hidden
+                />
+                <span className="min-w-0">{renderInlineMarkdown(content)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      );
+    }
+
+    // Section header: short line ending in ":" with no other content
+    if (
+      lines.length === 1 &&
+      /^[A-Z][^.!?]+:$/.test(lines[0]) &&
+      lines[0].length < 40
+    ) {
+      return (
+        <p
+          key={i}
+          className="text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-300"
+        >
+          {lines[0].replace(/:$/, "")}
+        </p>
+      );
+    }
+
+    // Regular paragraph — join multi-line into single flow
+    return (
+      <p key={i} className="text-[15px] leading-relaxed text-zinc-300">
+        {renderInlineMarkdown(lines.join(" "))}
+      </p>
+    );
+  });
+}
+
 // Read a File into a base64 string (no data URL prefix)
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -630,13 +691,8 @@ export default function Home() {
                     Summary
                   </h3>
                 </div>
-                <div className="space-y-4 text-[15px] leading-relaxed text-zinc-300">
-                  {result.summary
-                    .split(/\n\n+/)
-                    .filter((p) => p.trim().length > 0)
-                    .map((para, i) => (
-                      <p key={i}>{renderInlineMarkdown(para.trim())}</p>
-                    ))}
+                <div className="space-y-4">
+                  {renderSummary(result.summary)}
                 </div>
               </div>
             )}
@@ -673,84 +729,218 @@ export default function Home() {
               </div>
             )}
 
-            {/* Top evidence */}
-            <div className="animate-fade-up [animation-delay:240ms]">
-              <h3 className="mb-3 text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
-                Evidence · {result.sub_results.flatMap((sr) => sr.top_evidence).length} sources
-              </h3>
-              <div className="space-y-3">
-                {result.sub_results
-                  .flatMap((sr) => sr.top_evidence)
-                  .slice(0, 6)
-                  .map((ev, i) => (
-                    <a
-                      key={i}
-                      href={ev.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ animationDelay: `${320 + i * 60}ms` }}
-                      className="glass animate-fade-up block rounded-xl p-4 transition hover:-translate-y-0.5 hover:bg-zinc-900/80 hover:shadow-[0_10px_30px_-15px_rgba(129,140,248,0.4)]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex min-w-0 items-start gap-3">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={faviconUrl(ev.url, 32)}
-                            alt=""
-                            aria-hidden
-                            width={20}
-                            height={20}
-                            className="mt-0.5 h-5 w-5 shrink-0 rounded-sm bg-white/10"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
-                            }}
-                          />
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-zinc-100">
-                              {ev.title}
-                            </p>
-                            <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-500">
-                              {domain(ev.url)}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider ${
-                            ev.source_is_fulltext
-                              ? "bg-zinc-800/60 text-zinc-400"
-                              : "bg-amber-500/10 text-amber-300"
-                          }`}
+            {/* Strongest evidence + All retrieved evidence (mirrors the
+                misinfo_detection capstone's "Strongest evidence" card +
+                "All retrieved evidence" expander pattern). */}
+            {(() => {
+              const allEvidence = result.sub_results.flatMap((sr) => sr.top_evidence);
+              if (allEvidence.length === 0) return null;
+
+              const informativeness = (e: Evidence) =>
+                e.entailment + e.contradiction;
+              const sorted = [...allEvidence].sort(
+                (a, b) => informativeness(b) - informativeness(a),
+              );
+              const strongest = sorted[0];
+
+              const accentBorder = (() => {
+                switch (result.verdict) {
+                  case "Real":
+                    return "border-l-emerald-500";
+                  case "Misinformation":
+                    return "border-l-amber-500";
+                  case "Disinformation":
+                    return "border-l-rose-500";
+                  default:
+                    return "border-l-zinc-700";
+                }
+              })();
+
+              return (
+                <>
+                  {/* Strongest evidence — hero card */}
+                  <div
+                    className={`glass animate-fade-up rounded-2xl border-l-4 ${accentBorder} p-6 [animation-delay:240ms]`}
+                  >
+                    <div className="mb-4 flex items-center gap-2">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4 text-indigo-400"
+                        aria-hidden
+                      >
+                        <path d="M3 11l3 3 8-8" />
+                        <path d="M3 17l3 3 8-8" />
+                      </svg>
+                      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                        Strongest evidence
+                      </h3>
+                    </div>
+
+                    <blockquote className="border-l-2 border-zinc-700 pl-4 text-[15px] italic leading-relaxed text-zinc-200">
+                      &ldquo;
+                      {strongest.snippet.length > 360
+                        ? strongest.snippet.slice(0, 360).trimEnd() + "..."
+                        : strongest.snippet}
+                      &rdquo;
+                    </blockquote>
+
+                    <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={faviconUrl(strongest.url, 32)}
+                        alt=""
+                        aria-hidden
+                        width={18}
+                        height={18}
+                        className="h-[18px] w-[18px] shrink-0 rounded-sm bg-white/10"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
+                        }}
+                      />
+                      <a
+                        href={strongest.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-indigo-300 underline-offset-4 transition hover:text-indigo-200 hover:underline"
+                      >
+                        {strongest.title}
+                      </a>
+                      <span className="font-mono text-[11px] text-zinc-500">
+                        · {domain(strongest.url)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex gap-4 font-mono text-[11px] tabular-nums text-zinc-500">
+                      <span>
+                        NLI · entail{" "}
+                        <span className="font-semibold text-emerald-400">
+                          {(strongest.entailment * 100).toFixed(0)}%
+                        </span>
+                      </span>
+                      <span>
+                        neutral{" "}
+                        <span className="font-semibold text-zinc-400">
+                          {(strongest.neutral * 100).toFixed(0)}%
+                        </span>
+                      </span>
+                      <span>
+                        contra{" "}
+                        <span className="font-semibold text-rose-400">
+                          {(strongest.contradiction * 100).toFixed(0)}%
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* All retrieved sources — collapsible compact list */}
+                  <details className="glass group animate-fade-up rounded-2xl [animation-delay:320ms]">
+                    <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 select-none">
+                      <h3 className="text-[11px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+                        All retrieved sources · {sorted.length}
+                      </h3>
+                      <span className="flex items-center gap-2 text-xs text-zinc-500">
+                        <span className="hidden sm:inline group-open:hidden">
+                          show table
+                        </span>
+                        <span className="hidden sm:inline group-open:inline-block">
+                          hide
+                        </span>
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth={2.2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-4 w-4 transition-transform group-open:rotate-180"
+                          aria-hidden
                         >
-                          {ev.source_is_fulltext ? "fulltext" : "snippet"}
-                        </span>
+                          <path d="M6 9l6 6 6-6" />
+                        </svg>
+                      </span>
+                    </summary>
+
+                    <div className="border-t border-white/5">
+                      <div className="hidden grid-cols-[1fr_auto_auto_auto] gap-4 border-b border-white/5 px-6 py-2 font-mono text-[10px] uppercase tracking-wider text-zinc-500 sm:grid">
+                        <span>Source</span>
+                        <span className="w-12 text-right">entail</span>
+                        <span className="w-12 text-right">neutral</span>
+                        <span className="w-12 text-right">contra</span>
                       </div>
-                      <p className="mt-2.5 line-clamp-3 text-sm leading-relaxed text-zinc-300">
-                        {ev.snippet}
+
+                      <div className="divide-y divide-white/5">
+                        {sorted.map((ev, i) => (
+                          <a
+                            key={i}
+                            href={ev.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="grid grid-cols-[1fr_auto] gap-4 px-6 py-3 transition hover:bg-white/[0.02] sm:grid-cols-[1fr_auto_auto_auto]"
+                          >
+                            <div className="flex min-w-0 items-center gap-3">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={faviconUrl(ev.url, 32)}
+                                alt=""
+                                aria-hidden
+                                width={16}
+                                height={16}
+                                className="h-4 w-4 shrink-0 rounded-sm bg-white/10"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
+                                }}
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm text-zinc-200">
+                                  {ev.title}
+                                </p>
+                                <p className="truncate font-mono text-[11px] text-zinc-500">
+                                  {domain(ev.url)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="hidden w-12 text-right font-mono text-xs tabular-nums text-emerald-400 sm:block">
+                              {(ev.entailment * 100).toFixed(0)}%
+                            </div>
+                            <div className="hidden w-12 text-right font-mono text-xs tabular-nums text-zinc-400 sm:block">
+                              {(ev.neutral * 100).toFixed(0)}%
+                            </div>
+                            <div className="hidden w-12 text-right font-mono text-xs tabular-nums text-rose-400 sm:block">
+                              {(ev.contradiction * 100).toFixed(0)}%
+                            </div>
+                            {/* Mobile: stacked scores */}
+                            <div className="flex gap-3 font-mono text-[11px] tabular-nums sm:hidden">
+                              <span className="text-emerald-400">
+                                {(ev.entailment * 100).toFixed(0)}%
+                              </span>
+                              <span className="text-zinc-500">
+                                {(ev.neutral * 100).toFixed(0)}%
+                              </span>
+                              <span className="text-rose-400">
+                                {(ev.contradiction * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </a>
+                        ))}
+                      </div>
+                      <p className="border-t border-white/5 px-6 py-3 text-[11px] text-zinc-500">
+                        <span className="text-emerald-400">entail</span> = source
+                        supports claim &middot;{" "}
+                        <span className="text-rose-400">contra</span> = source
+                        refutes claim &middot;{" "}
+                        <span className="text-zinc-400">neutral</span> = source is
+                        unrelated or inconclusive
                       </p>
-                      <div className="mt-3 flex gap-4 font-mono text-[11px] tabular-nums text-zinc-500">
-                        <span>
-                          entail{" "}
-                          <span className="font-semibold text-emerald-400">
-                            {(ev.entailment * 100).toFixed(0)}%
-                          </span>
-                        </span>
-                        <span>
-                          neutral{" "}
-                          <span className="font-semibold text-zinc-400">
-                            {(ev.neutral * 100).toFixed(0)}%
-                          </span>
-                        </span>
-                        <span>
-                          contra{" "}
-                          <span className="font-semibold text-rose-400">
-                            {(ev.contradiction * 100).toFixed(0)}%
-                          </span>
-                        </span>
-                      </div>
-                    </a>
-                  ))}
-              </div>
-            </div>
+                    </div>
+                  </details>
+                </>
+              );
+            })()}
           </section>
         )}
 
