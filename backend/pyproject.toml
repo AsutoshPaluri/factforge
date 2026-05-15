@@ -14,6 +14,10 @@ dependencies = [
 
     # Agent orchestration
     "langgraph>=0.2.50",
+    # Required by langfuse.langchain CallbackHandler (LangGraph uses
+    # langchain-core internally; this brings the full shim that Langfuse
+    # imports for its callback API).
+    "langchain>=0.3.0",
 
     # LLM
     "google-genai>=0.4.0",

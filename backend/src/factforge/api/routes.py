@@ -28,6 +28,7 @@ from factforge.api.schemas import (
 )
 from factforge.clients.embeddings import get_embedder
 from factforge.clients.groq import get_groq
+from factforge.clients.langfuse_client import make_config as make_langfuse_config
 from factforge.config import settings
 from factforge.db import repositories
 from factforge.db.supabase_client import is_configured as db_configured
@@ -243,7 +244,14 @@ async def submit_claim(payload: ClaimRequest) -> ClaimResponse:
     }
 
     try:
-        final_state = await graph.ainvoke(agent_input)
+        final_state = await graph.ainvoke(
+            agent_input,
+            config=make_langfuse_config({
+                "endpoint": "POST /claims",
+                "had_image": image_bytes is not None,
+                "had_learned_feedback": learned_feedback is not None,
+            }),
+        )
     except Exception as e:
         logger.exception(
             "claim_pipeline_failed",
@@ -380,7 +388,12 @@ async def refine_claim(
                 "claim": parent_claim_text,
                 "feedback": feedback,
                 "learned_feedback": learned_feedback,
-            }
+            },
+            config=make_langfuse_config({
+                "endpoint": "POST /claims/refine",
+                "original_claim_id": claim_id,
+                "feedback_chars": len(feedback),
+            }),
         )
     except Exception as e:
         logger.exception("refine_pipeline_failed", claim_id=claim_id, error=str(e))
