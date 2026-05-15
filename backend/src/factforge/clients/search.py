@@ -18,8 +18,13 @@ the html/lite/json backends.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 import re
-from dataclasses import dataclass
+import time
+from dataclasses import asdict, dataclass
+from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 import structlog
@@ -43,6 +48,105 @@ PAGE_FETCH_CONCURRENCY = 5   # max parallel page fetches
 
 DDG_RETRIES = 3
 DDG_BACKOFF_S = 1.5
+
+
+# --- Domain quality filters ---
+# Blocked: known-poor sources for fact-checking — tabloids, listicles,
+# Q&A forums, social-media snippets (just video descriptions). These hurt
+# NLI verdict accuracy disproportionately when they leak into a small
+# evidence pool.
+BLOCKED_DOMAINS = frozenset({
+    # Tabloids
+    "metro.co.uk", "dailymail.co.uk", "mirror.co.uk",
+    "the-sun.com", "nypost.com", "thesun.co.uk",
+    # Listicle / clickbait
+    "buzzfeed.com", "cracked.com", "boredpanda.com",
+    # Q&A and forums
+    "quora.com", "reddit.com", "answers.com", "answers.yahoo.com",
+    # Social-media snippets are just video/post descriptions — useless for NLI
+    "youtube.com", "youtu.be", "tiktok.com", "twitter.com", "x.com",
+    "facebook.com", "instagram.com", "pinterest.com",
+    # AI-generated / aggregator junk
+    "actforlibraries.org",  # SEO-spam-ish
+})
+
+
+def _normalised_domain(url: str) -> str:
+    """Lowercased hostname with leading 'www.' stripped. '' on parse failure."""
+    try:
+        host = urlparse(url).hostname or ""
+        return host.lower().removeprefix("www.")
+    except Exception:
+        return ""
+
+
+def _is_blocked_domain(url: str) -> bool:
+    """True if the URL's domain (or any parent domain) is in BLOCKED_DOMAINS."""
+    d = _normalised_domain(url)
+    if not d:
+        return False
+    if d in BLOCKED_DOMAINS:
+        return True
+    # Match suffixes too: "uk.reddit.com" -> blocked because reddit.com is blocked
+    for bd in BLOCKED_DOMAINS:
+        if d.endswith("." + bd):
+            return True
+    return False
+
+
+# --- Evidence cache ---
+# Deterministic-by-claim: same claim text -> same retrieved evidence ->
+# same NLI scores -> same verdict. This is what fixes "I ran it twice and
+# got different answers." 7-day TTL because web pages drift.
+_CACHE_DIR = Path.home() / ".cache" / "factforge" / "evidence"
+_CACHE_TTL_S = 7 * 24 * 3600  # 7 days
+
+
+def _cache_key(claim: str, k: int, enrich: bool) -> str:
+    """Stable hash of (normalised claim, k, enrich) for cache lookup."""
+    normalised = claim.strip().lower()
+    raw = f"{normalised}|k={k}|enrich={int(enrich)}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def _cache_path(key: str) -> Path:
+    return _CACHE_DIR / f"{key}.json"
+
+
+def _cache_get(claim: str, k: int, enrich: bool) -> list[EvidenceSnippet] | None:
+    """Read cached evidence if present and within TTL. None if miss/expired."""
+    path = _cache_path(_cache_key(claim, k, enrich))
+    if not path.exists():
+        return None
+    try:
+        raw = json.loads(path.read_text())
+        if time.time() - raw.get("ts", 0) > _CACHE_TTL_S:
+            return None
+        return [EvidenceSnippet(**item) for item in raw["evidence"]]
+    except Exception as e:
+        logger.warning("evidence_cache_read_failed", error=str(e))
+        return None
+
+
+def _cache_put(
+    claim: str, k: int, enrich: bool, evidence: list[EvidenceSnippet]
+) -> None:
+    """Persist evidence list under a stable claim-derived key."""
+    if not evidence:
+        return  # never cache empties — retrying might succeed next time
+    path = _cache_path(_cache_key(claim, k, enrich))
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "ts": time.time(),
+            "claim": claim.strip(),
+            "k": k,
+            "enrich": enrich,
+            "evidence": [asdict(ev) for ev in evidence],
+        }
+        path.write_text(json.dumps(payload))
+    except Exception as e:
+        logger.warning("evidence_cache_write_failed", error=str(e))
 
 
 # --- Public dataclass ---
@@ -232,31 +336,51 @@ async def retrieve_evidence(
     Returns:
         Deduped list of EvidenceSnippet. Empty list on total search failure.
     """
+    # --- Cache hit short-circuit: same claim -> same evidence -> same verdict ---
+    cached = _cache_get(claim, k, enrich)
+    if cached is not None:
+        logger.info(
+            "retrieve_evidence_cache_hit", claim=claim[:80], n=len(cached)
+        )
+        return cached
+
     queries = [claim, _build_fact_check_query(claim)]
 
     # Fire both queries in parallel
     search_results = await asyncio.gather(*(ddg_search(q, k=k) for q in queries))
 
-    # Merge + dedupe (URL then title fallback) + drop non-English
+    # Merge + dedupe + drop non-English + drop blocked domains
     seen: set[str] = set()
     merged: list[dict[str, str]] = []
+    n_blocked = 0
     for results in search_results:
         for r in results:
             key = (r.get("url") or r.get("title") or "").lower()
             if not key or key in seen:
                 continue
             seen.add(key)
+            url = r.get("url", "")
+            if url and _is_blocked_domain(url):
+                n_blocked += 1
+                continue
             snip = r["snippet"]
             if not snip or not _looks_english(snip):
                 continue
             merged.append(r)
+
+    if n_blocked:
+        logger.info(
+            "retrieve_evidence_blocked_filtered",
+            claim=claim[:80],
+            n_blocked=n_blocked,
+        )
 
     if not merged:
         logger.info("retrieve_evidence_empty", claim=claim)
         return []
 
     if not enrich:
-        return [
+        result_no_enrich = [
             EvidenceSnippet(
                 title=r["title"],
                 snippet=r["snippet"],
@@ -265,6 +389,8 @@ async def retrieve_evidence(
             )
             for r in merged
         ]
+        _cache_put(claim, k, enrich, result_no_enrich)
+        return result_no_enrich
 
     # Parallel page-text enrichment, bounded by semaphore
     sem = asyncio.Semaphore(PAGE_FETCH_CONCURRENCY)
@@ -307,4 +433,5 @@ async def retrieve_evidence(
             )
         )
 
+    _cache_put(claim, k, enrich, enriched)
     return enriched

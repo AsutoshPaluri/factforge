@@ -148,8 +148,15 @@ async def summarizer_node(state: AgentState) -> dict:
         # Use the lighter 8b model for the summary — 5x more daily-token
         # headroom on Groq free tier (500k TPD vs 100k for 70b), and it
         # handles 2-3 paragraph markdown narrative just fine.
+        # temperature=0.1 keeps wording stable across reruns (consistency
+        # for the same claim) without going fully deterministic (which can
+        # produce stilted phrasing).
         summary = (
-            await groq.generate_text(prompt, model=settings.groq_summary_model)
+            await groq.generate_text(
+                prompt,
+                model=settings.groq_summary_model,
+                temperature=0.1,
+            )
         ).strip()
         # Strip any stray markdown code-fence the model might add
         if summary.startswith("```"):

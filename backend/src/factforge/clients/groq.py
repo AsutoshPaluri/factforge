@@ -90,6 +90,7 @@ class GroqClient:
         messages: list[dict],
         response_format: dict | None = None,
         model: str | None = None,
+        temperature: float | None = None,
     ):
         """Single chat completion call with retry."""
         async for attempt in AsyncRetrying(
@@ -102,7 +103,9 @@ class GroqClient:
                 kwargs: dict = {
                     "model": model or self.model,
                     "messages": messages,
-                    "temperature": self.temperature,
+                    "temperature": (
+                        temperature if temperature is not None else self.temperature
+                    ),
                     "max_tokens": self.max_tokens,
                 }
                 if response_format:
@@ -112,10 +115,18 @@ class GroqClient:
                 return response
         raise RuntimeError("retry loop exited without return")
 
-    async def generate_text(self, prompt: str, *, model: str | None = None) -> str:
-        """Plain text in -> plain text out. Optional `model` override."""
+    async def generate_text(
+        self,
+        prompt: str,
+        *,
+        model: str | None = None,
+        temperature: float | None = None,
+    ) -> str:
+        """Plain text in -> plain text out. Optional model + temperature overrides."""
         response = await self._create(
-            [{"role": "user", "content": prompt}], model=model
+            [{"role": "user", "content": prompt}],
+            model=model,
+            temperature=temperature,
         )
         return (response.choices[0].message.content or "").strip()
 

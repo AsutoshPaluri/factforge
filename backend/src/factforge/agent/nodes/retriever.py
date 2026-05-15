@@ -18,10 +18,11 @@ from factforge.clients.search import retrieve_evidence
 
 logger = structlog.get_logger(__name__)
 
-# How many evidence snippets to retrieve per sub-claim. The downstream
-# NLI cost scales linearly with this — 5 is a good balance for Gemini-Flash
-# +DeBERTa.
-EVIDENCE_K = 5
+# How many evidence snippets to retrieve per sub-claim. We fire 2 queries
+# per sub-claim (raw + fact-check-biased), so total upper bound is 2k.
+# Bumping from 5 -> 8 to make the evidence pool more robust against a
+# single bad source (tabloid listicle, misread snippet) flipping the verdict.
+EVIDENCE_K = 8
 
 
 async def retriever_node(state: AgentState) -> dict:
