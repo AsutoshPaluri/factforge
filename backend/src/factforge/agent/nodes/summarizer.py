@@ -12,10 +12,10 @@ weighted aggregation) and a user-readable answer.
 from __future__ import annotations
 
 import structlog
-from pydantic import BaseModel, Field
 
 from factforge.agent.state import AgentState
 from factforge.clients.groq import get_groq
+from factforge.config import settings
 
 logger = structlog.get_logger(__name__)
 
@@ -23,19 +23,10 @@ _MAX_EVIDENCE_PER_SUB = 3
 _MAX_SNIPPET_CHARS = 350
 
 
-class _SummaryOutput(BaseModel):
-    """Structured output schema for the verdict explanation."""
-
-    summary: str = Field(
-        description=(
-            "Google-AI-Overview-style markdown explanation: a lead sentence, "
-            "then 'Key reasons:' followed by 3-5 bulleted facts with **bold "
-            "lead-ins**, then optional closing context. Cite named sources "
-            "like *NASA* or *Britannica*. 150-300 words."
-        ),
-        min_length=80,
-        max_length=2500,
-    )
+# Plain-text summary — markdown rendered client-side. Avoiding JSON-mode
+# because multi-line markdown with asterisks, quotes, and bullets is brittle
+# inside escaped JSON strings; some completions return invalid JSON and
+# blow up Pydantic parsing.
 
 
 def _format_evidence_block(sub_results: list) -> str:
@@ -154,13 +145,25 @@ async def summarizer_node(state: AgentState) -> dict:
 
     try:
         groq = get_groq()
-        result = await groq.generate_structured(prompt, _SummaryOutput)
-        summary = result.summary.strip()
+        # Use the lighter 8b model for the summary — 5x more daily-token
+        # headroom on Groq free tier (500k TPD vs 100k for 70b), and it
+        # handles 2-3 paragraph markdown narrative just fine.
+        summary = (
+            await groq.generate_text(prompt, model=settings.groq_summary_model)
+        ).strip()
+        # Strip any stray markdown code-fence the model might add
+        if summary.startswith("```"):
+            summary = summary.split("```")[1]
+            if summary.startswith("markdown"):
+                summary = summary[len("markdown") :]
+            summary = summary.strip()
     except Exception as e:
         # Don't fail the whole pipeline if the summary call has trouble —
         # the verdict + evidence are still useful on their own.
         logger.warning("summarizer_failed", error=str(e))
         summary = ""
 
-    logger.info("summarizer_done", chars=len(summary), llm="groq")
+    logger.info(
+        "summarizer_done", chars=len(summary), model=settings.groq_summary_model
+    )
     return {"summary": summary}

@@ -43,7 +43,13 @@ class Settings(BaseSettings):
     nli_model_name: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
     nli_device: str = "cpu"  # cpu | mps | cuda
     gemini_model: str = "gemini-2.5-flash"
-    groq_model: str = "llama-3.3-70b-versatile"
+    # Default Groq model — 8b-instant has 500k TPD on the free tier
+    # (vs 100k for 70b), giving us headroom for both real traffic and eval.
+    # Override to 'llama-3.3-70b-versatile' via env if you want higher
+    # accuracy on the decomposer (uses more daily token budget).
+    groq_model: str = "llama-3.1-8b-instant"
+    # Summarizer model (separate slot so we can A/B test independently).
+    groq_summary_model: str = "llama-3.1-8b-instant"
 
     # --- App ---
     frontend_url: str = "http://localhost:3000"

@@ -85,7 +85,12 @@ class GroqClient:
             total_tokens=getattr(usage, "total_tokens", 0) or 0,
         )
 
-    async def _create(self, messages: list[dict], response_format: dict | None = None):
+    async def _create(
+        self,
+        messages: list[dict],
+        response_format: dict | None = None,
+        model: str | None = None,
+    ):
         """Single chat completion call with retry."""
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(self.max_retries),
@@ -95,7 +100,7 @@ class GroqClient:
         ):
             with attempt:
                 kwargs: dict = {
-                    "model": self.model,
+                    "model": model or self.model,
                     "messages": messages,
                     "temperature": self.temperature,
                     "max_tokens": self.max_tokens,
@@ -107,9 +112,11 @@ class GroqClient:
                 return response
         raise RuntimeError("retry loop exited without return")
 
-    async def generate_text(self, prompt: str) -> str:
-        """Plain text in -> plain text out."""
-        response = await self._create([{"role": "user", "content": prompt}])
+    async def generate_text(self, prompt: str, *, model: str | None = None) -> str:
+        """Plain text in -> plain text out. Optional `model` override."""
+        response = await self._create(
+            [{"role": "user", "content": prompt}], model=model
+        )
         return (response.choices[0].message.content or "").strip()
 
     async def generate_structured(self, prompt: str, schema: type[T]) -> T:
