@@ -68,15 +68,21 @@ You are writing a fact-check explanation in the style of Google's AI Overview
 Claim: "{claim}"
 Verdict: {verdict} ({confidence:.0%} confidence)
 
+Verdict vocabulary (use these terms in your writing):
+  - "Credible"       — the claim is supported by the evidence
+  - "Not Credible"   — the claim is refuted by the evidence
+  - "Uncertain"      — evidence is mixed, sparse, or genuinely ambiguous;
+                       agent abstains from a binary call
+
 Evidence retrieved and scored against the claim:
 {evidence_block}
 
 OUTPUT FORMAT (markdown — render exactly this structure):
 
 1. LEAD PARAGRAPH (1-2 sentences):
-   - State the answer directly. Reference 1-2 named sources from the
-     evidence above (e.g. "According to *NASA*..." or "*Britannica*
-     documents that...").
+   - State the verdict directly using the vocabulary above. Reference 1-2
+     named sources from the evidence (e.g. "According to *NASA*..." or
+     "*Britannica* documents that...").
    - A reader should know the answer from this paragraph alone.
 
 2. EMPTY LINE, then "Key reasons:" on its own line, then EMPTY LINE.
@@ -90,28 +96,45 @@ OUTPUT FORMAT (markdown — render exactly this structure):
 
 4. OPTIONAL CLOSING PARAGRAPH (1-2 sentences). Only if it adds real
    value — origin of the misconception, why it persists, when first
-   disproven, etc. Skip if not relevant.
+   disproven, OR (if Uncertain) what evidence would clarify the verdict.
+   Skip if not relevant.
 
-EXAMPLE OUTPUT (for "Earth is flat"):
+EXAMPLE — for a "Not Credible" verdict on "Earth is flat":
 
-The claim that Earth is flat is unambiguously disinformation. *NASA* and
-*Britannica* both document that Earth is an oblate spheroid, slightly
-bulged at the equator, as confirmed by direct observation from space.
+The claim that Earth is flat is not credible. *NASA* and *Britannica*
+both document that Earth is an oblate spheroid, slightly bulged at the
+equator, as confirmed by direct observation from space.
 
 Key reasons:
 
 - **Ships over the horizon:** As ships sail away they disappear from the bottom up — a visible sign of Earth's curvature noted since antiquity.
 - **Lunar eclipses:** Earth casts a circular shadow on the Moon during every lunar eclipse, geometrically only possible for a sphere.
 - **Satellite imagery:** Tens of thousands of satellites and direct photographs from space confirm Earth's spherical shape, per *NASA*.
-- **Gravity:** A flat disk would pull objects toward its center, not toward the ground — *USA Today*.
 
 The flat-Earth idea persists today primarily as conspiracy content
 despite being scientifically disproven for over two millennia.
+
+EXAMPLE — for an "Uncertain" verdict:
+
+The claim "[X]" is **uncertain** based on the retrieved evidence — sources
+either don't directly address the assertion or split between supporting
+and refuting it.
+
+Key reasons:
+
+- **Mixed signals:** *Source A* supports the claim while *Source B* explicitly contradicts it.
+- **Sparse coverage:** Only 2 of 8 retrieved sources directly addressed the assertion.
+- **Definitional ambiguity:** The claim depends on how "[term]" is defined, which varies across sources.
+
+A clearer verdict would require sources that directly address the
+specific assertion rather than adjacent topics.
 
 RULES:
 - Cite REAL named sources from the evidence above. Never invent.
 - Factual, neutral tone. No moralizing, no exclamations.
 - No "as an AI" or meta-commentary.
+- Use only "Credible / Not Credible / Uncertain" — NOT "Real",
+  "Disinformation", "Misinformation", "fake news", etc.
 - Plain markdown only. No code fences, no headings (no ###).
 - 150-300 words total.
 """

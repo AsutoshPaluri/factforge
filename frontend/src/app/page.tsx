@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-type Verdict = "Real" | "Misinformation" | "Disinformation";
+type Verdict = "Credible" | "Uncertain" | "Not Credible";
 
 interface Evidence {
   title: string;
@@ -78,7 +78,7 @@ const ACCEPTED_MIME = "image/jpeg,image/png,image/webp,image/gif";
 
 const verdictStyles = (v: Verdict | string) => {
   switch (v) {
-    case "Real":
+    case "Credible":
       return {
         glow: "glow-real",
         text: "text-emerald-300",
@@ -87,7 +87,7 @@ const verdictStyles = (v: Verdict | string) => {
         pill: "bg-emerald-500/10 text-emerald-300 border-emerald-500/30",
         ring: "ring-emerald-500/30",
       };
-    case "Misinformation":
+    case "Uncertain":
       return {
         glow: "glow-misinfo",
         text: "text-amber-300",
@@ -96,7 +96,7 @@ const verdictStyles = (v: Verdict | string) => {
         pill: "bg-amber-500/10 text-amber-300 border-amber-500/30",
         ring: "ring-amber-500/30",
       };
-    case "Disinformation":
+    case "Not Credible":
       return {
         glow: "glow-disinfo",
         text: "text-rose-300",
@@ -119,11 +119,11 @@ const verdictStyles = (v: Verdict | string) => {
 
 const verdictIcon = (v: Verdict | string) => {
   switch (v) {
-    case "Real":
+    case "Credible":
       return "✓";
-    case "Misinformation":
+    case "Uncertain":
       return "?";
-    case "Disinformation":
+    case "Not Credible":
       return "✕";
     default:
       return "—";
@@ -772,7 +772,7 @@ export default function Home() {
 
               {/* Probability bars */}
               <div className="mt-6 space-y-2.5">
-                {(["Real", "Misinformation", "Disinformation"] as const).map(
+                {(["Credible", "Uncertain", "Not Credible"] as const).map(
                   (cls) => {
                     const pct = (result.probs[cls] || 0) * 100;
                     return (

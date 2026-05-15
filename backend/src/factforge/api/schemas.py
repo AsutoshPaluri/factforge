@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-Verdict = Literal["Real", "Misinformation", "Disinformation"]
+Verdict = Literal["Credible", "Uncertain", "Not Credible"]
 
 # Max base64 payload size for an image — ~4.4 MB raw = ~6 MB encoded.
 # Bigger than this likely means a HEIC / RAW that won't be useful anyway.

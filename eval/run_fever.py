@@ -35,13 +35,18 @@ DEFAULT_SAMPLE_SIZE = 30
 DEFAULT_SEED = 42
 CLAIM_TIMEOUT_S = 180.0  # per claim — agent runs include model loading on cold start
 
-# FEVER -> factforge 3-class label mapping
+# FEVER -> factforge 3-class label mapping (after the Credible/Not Credible
+# rename). Note: NEI maps to Uncertain — but our hybrid binary-with-abstain
+# verdict treats Uncertain as an explicit abstain. We report PRIMARY binary
+# accuracy (drop Uncertain ground-truth rows from the binary metric), and
+# also report a 3-class breakdown for transparency.
 LABEL_MAP = {
-    "SUPPORTS": "Real",
-    "REFUTES": "Disinformation",
-    "NOT ENOUGH INFO": "Misinformation",
+    "SUPPORTS": "Credible",
+    "REFUTES": "Not Credible",
+    "NOT ENOUGH INFO": "Uncertain",
 }
-CLASSES = ["Real", "Misinformation", "Disinformation"]
+CLASSES = ["Credible", "Uncertain", "Not Credible"]
+BINARY_CLASSES = ["Credible", "Not Credible"]
 
 
 def load_fever(path: Path) -> list[dict]:
@@ -99,13 +104,32 @@ def fmt_pct(x: float) -> str:
 
 
 def compute_metrics(results: list[dict]) -> dict:
-    """Compute accuracy, per-class P/R/F1, confusion matrix, latency."""
+    """Compute accuracy, per-class P/R/F1, confusion matrix, latency.
+
+    Reports two numbers:
+      - 3-class accuracy (includes Uncertain) — for transparency
+      - Binary accuracy (Credible vs Not Credible, drops Uncertain
+        ground-truth rows) — this is the headline metric since the agent
+        is designed for binary commitment with Uncertain as abstain.
+      - Abstain rate: % of predictions that landed in Uncertain.
+    """
     successful = [r for r in results if r["predicted"] is not None]
     correct = sum(1 for r in successful if r["correct"])
     total = len(successful)
     accuracy = correct / total if total else 0.0
 
-    # Per-class P / R / F1
+    # Binary metric: drop Uncertain ground-truth rows; also treat agent
+    # Uncertain predictions on binary truth as misses (didn't commit).
+    binary_rows = [r for r in successful if r["true_label"] != "Uncertain"]
+    binary_correct = sum(1 for r in binary_rows if r["correct"])
+    binary_total = len(binary_rows)
+    binary_accuracy = binary_correct / binary_total if binary_total else 0.0
+
+    # Abstain stats (agent chose Uncertain)
+    abstained = sum(1 for r in successful if r["predicted"] == "Uncertain")
+    abstain_rate = abstained / total if total else 0.0
+
+    # Per-class P / R / F1 (3-class)
     per_class: dict[str, dict[str, float]] = {}
     for cls in CLASSES:
         tp = sum(1 for r in successful if r["true_label"] == cls and r["predicted"] == cls)
@@ -124,7 +148,23 @@ def compute_metrics(results: list[dict]) -> dict:
         sum(per_class[c]["f1"] for c in CLASSES) / len(CLASSES) if per_class else 0.0
     )
 
-    # Confusion matrix (rows = true, cols = predicted)
+    # Binary per-class (for the headline)
+    per_class_binary: dict[str, dict[str, float]] = {}
+    for cls in BINARY_CLASSES:
+        tp = sum(1 for r in binary_rows if r["true_label"] == cls and r["predicted"] == cls)
+        fp = sum(1 for r in binary_rows if r["true_label"] != cls and r["predicted"] == cls)
+        fn = sum(1 for r in binary_rows if r["true_label"] == cls and r["predicted"] != cls)
+        precision = tp / (tp + fp) if (tp + fp) else 0.0
+        recall = tp / (tp + fn) if (tp + fn) else 0.0
+        f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+        per_class_binary[cls] = {
+            "precision": precision,
+            "recall": recall,
+            "f1": f1,
+            "support": sum(1 for r in binary_rows if r["true_label"] == cls),
+        }
+
+    # Confusion matrix (3-class, rows = true, cols = predicted)
     confusion: dict[str, dict[str, int]] = {
         t: {p: 0 for p in CLASSES} for t in CLASSES
     }
@@ -149,9 +189,13 @@ def compute_metrics(results: list[dict]) -> dict:
         "n_total": len(results),
         "n_successful": total,
         "n_errors": len(results) - total,
-        "accuracy": accuracy,
-        "macro_f1": macro_f1,
+        "accuracy_3class": accuracy,
+        "accuracy_binary": binary_accuracy,
+        "n_binary_rows": binary_total,
+        "abstain_rate": abstain_rate,
+        "macro_f1_3class": macro_f1,
         "per_class": per_class,
+        "per_class_binary": per_class_binary,
         "confusion": confusion,
         "latency": latency,
     }
@@ -159,24 +203,51 @@ def compute_metrics(results: list[dict]) -> dict:
 
 def print_metrics(m: dict) -> None:
     print()
-    print("=" * 60)
+    print("=" * 64)
     print("FEVER evaluation results")
-    print("=" * 60)
+    print("=" * 64)
     print(
         f"Samples: {m['n_successful']}/{m['n_total']} successful "
         f"({m['n_errors']} errors)"
     )
-    print(f"Accuracy:  {fmt_pct(m['accuracy'])}")
-    print(f"Macro F1:  {fmt_pct(m['macro_f1'])}")
+    print()
+    print(">>> HEADLINE: Binary accuracy (Credible vs Not Credible)")
+    print(
+        f"    {fmt_pct(m['accuracy_binary'])}  "
+        f"on {m['n_binary_rows']} binary-labeled rows "
+        f"(FEVER NEI rows excluded as abstain ground truth)"
+    )
+    print()
+    print(">>> 3-class accuracy (includes Uncertain class)")
+    print(
+        f"    {fmt_pct(m['accuracy_3class'])}  "
+        f"macro-F1 {fmt_pct(m['macro_f1_3class'])}"
+    )
+    print(f"    Abstain rate: {fmt_pct(m['abstain_rate'])} of predictions were Uncertain")
     print()
 
-    # Per-class table
-    print(f"{'Class':<18} {'Precision':>11} {'Recall':>9} {'F1':>9} {'N':>5}")
-    print("-" * 56)
+    # Binary per-class
+    print("Binary per-class:")
+    print(f"  {'Class':<18} {'Precision':>11} {'Recall':>9} {'F1':>9} {'N':>5}")
+    print("  " + "-" * 56)
+    for cls in BINARY_CLASSES:
+        pc = m["per_class_binary"].get(cls, {})
+        print(
+            f"  {cls:<18} {fmt_pct(pc.get('precision', 0)):>11} "
+            f"{fmt_pct(pc.get('recall', 0)):>9} "
+            f"{fmt_pct(pc.get('f1', 0)):>9} "
+            f"{pc.get('support', 0):>5}"
+        )
+    print()
+
+    # 3-class per-class
+    print("3-class per-class:")
+    print(f"  {'Class':<18} {'Precision':>11} {'Recall':>9} {'F1':>9} {'N':>5}")
+    print("  " + "-" * 56)
     for cls in CLASSES:
         pc = m["per_class"].get(cls, {})
         print(
-            f"{cls:<18} {fmt_pct(pc.get('precision', 0)):>11} "
+            f"  {cls:<18} {fmt_pct(pc.get('precision', 0)):>11} "
             f"{fmt_pct(pc.get('recall', 0)):>9} "
             f"{fmt_pct(pc.get('f1', 0)):>9} "
             f"{pc.get('support', 0):>5}"
@@ -185,11 +256,11 @@ def print_metrics(m: dict) -> None:
 
     # Confusion matrix
     print("Confusion matrix (rows=true, cols=predicted):")
-    header = " " * 18 + "".join(f"{c[:6]:>9}" for c in CLASSES)
+    header = " " * 18 + "".join(f"{c[:10]:>11}" for c in CLASSES)
     print(header)
     for t in CLASSES:
         row = f"{t:<18}" + "".join(
-            f"{m['confusion'][t][p]:>9}" for p in CLASSES
+            f"{m['confusion'][t][p]:>11}" for p in CLASSES
         )
         print(row)
     print()

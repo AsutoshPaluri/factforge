@@ -11,12 +11,18 @@ Steps for each sub-claim:
      Title-aware contradiction penalty: if contra > 0.5 but the source
      title barely matches the sub-claim, scale info_score by 0.25.
   3. Max + mean (top-3) blend, normalised to probabilities.
+  4. Hybrid binary-with-abstain verdict:
+        - Default: pick between Credible and Not Credible (binary).
+        - Fall back to Uncertain ONLY when:
+            * p_uncertain (neutral) > both binary probs, OR
+            * binary leader has p < 0.40 AND gap to the other is < 0.10
+              (genuinely 50/50 evidence — better to abstain than guess)
 
 Final-verdict combination across sub-claims:
-  - If any sub-claim is Disinformation -> final = Disinformation
-  - Else if any is Misinformation -> final = Misinformation
-  - Else -> Real
-  - Confidence is the mean of sub-claim confidences.
+  - Any Not Credible -> Not Credible
+  - Else any Uncertain -> Uncertain
+  - Else Credible
+  Confidence = mean of per-sub-claim confidences.
 """
 
 from __future__ import annotations
@@ -34,8 +40,37 @@ from factforge.utils.text import (
 logger = structlog.get_logger(__name__)
 
 
-_FALLBACK_VERDICT = "Misinformation"
-_FALLBACK_PROBS = {"Disinformation": 0.33, "Misinformation": 0.34, "Real": 0.33}
+# When evidence is insufficient or all snippets fail the relevance gate.
+_FALLBACK_VERDICT = "Uncertain"
+_FALLBACK_PROBS = {"Credible": 0.33, "Uncertain": 0.34, "Not Credible": 0.33}
+
+# Thresholds for routing to Uncertain (the abstain bucket). Tuned to be
+# conservative: we only abstain when evidence is genuinely indecisive.
+_BINARY_COMMIT_FLOOR = 0.40       # binary leader must clear this prob
+_BINARY_TIE_GAP = 0.10            # leader-vs-other gap below this = tied
+
+
+def _resolve_verdict(
+    p_credible: float, p_uncertain: float, p_not_credible: float
+) -> str:
+    """Pick Credible / Not Credible / Uncertain from normalised probs.
+
+    Prefers binary verdicts. Only abstains to Uncertain when:
+      - neutral evidence dominates (p_uncertain is the max), OR
+      - the two binary probs are essentially tied AND neither is strong.
+    """
+    binary_max = max(p_credible, p_not_credible)
+    binary_min = min(p_credible, p_not_credible)
+
+    # Case 1: neutral evidence dominates -> truly insufficient signal
+    if p_uncertain > binary_max:
+        return "Uncertain"
+
+    # Case 2: binary leader is weak AND essentially tied with the other -> abstain
+    if binary_max < _BINARY_COMMIT_FLOOR and (binary_max - binary_min) < _BINARY_TIE_GAP:
+        return "Uncertain"
+
+    return "Credible" if p_credible > p_not_credible else "Not Credible"
 
 
 def _aggregate_sub_claim(sr: SubClaimResult) -> SubClaimResult:
@@ -119,16 +154,16 @@ def _aggregate_sub_claim(sr: SubClaimResult) -> SubClaimResult:
     if total <= 0:
         agg_e, agg_c, agg_n, total = 1 / 3, 1 / 3, 1 / 3, 1.0
 
-    p_real = agg_e / total
-    p_disinfo = agg_c / total
-    p_misinfo = agg_n / total
+    p_credible = agg_e / total
+    p_not_credible = agg_c / total
+    p_uncertain = agg_n / total
 
     probs = {
-        "Disinformation": round(p_disinfo, 4),
-        "Misinformation": round(p_misinfo, 4),
-        "Real": round(p_real, 4),
+        "Credible": round(p_credible, 4),
+        "Uncertain": round(p_uncertain, 4),
+        "Not Credible": round(p_not_credible, 4),
     }
-    verdict = max(probs, key=lambda k: probs[k])
+    verdict = _resolve_verdict(p_credible, p_uncertain, p_not_credible)
     confidence = probs[verdict]
 
     return {
@@ -146,9 +181,8 @@ def _aggregate_sub_claim(sr: SubClaimResult) -> SubClaimResult:
 def _combine_sub_verdicts(sub_results: list[SubClaimResult]) -> dict:
     """Combine per-sub-claim verdicts into a final claim verdict.
 
-    Worst-of policy: any Disinformation -> Disinformation; else any
-    Misinformation -> Misinformation; else Real. Confidence is the mean
-    of sub-claim confidences.
+    Worst-of policy: any Not Credible -> Not Credible; else any Uncertain
+    -> Uncertain; else Credible. Confidence = mean of sub-claim confidences.
     """
     if not sub_results:
         return {
@@ -161,24 +195,24 @@ def _combine_sub_verdicts(sub_results: list[SubClaimResult]) -> dict:
     verdicts = [sr["verdict"] for sr in sub_results]
     confidences = [sr["confidence"] for sr in sub_results]
 
-    if "Disinformation" in verdicts:
-        final = "Disinformation"
-    elif "Misinformation" in verdicts:
-        final = "Misinformation"
+    if "Not Credible" in verdicts:
+        final = "Not Credible"
+    elif "Uncertain" in verdicts:
+        final = "Uncertain"
     else:
-        final = "Real"
+        final = "Credible"
 
     # Final probs: per-class, the MAX across sub-claims for that class
-    # (so a single high-disinfo sub-claim carries through).
+    # (so a single high-not-credible sub-claim carries through).
     final_probs = {
-        "Disinformation": round(
-            max((sr["probs"].get("Disinformation", 0.0) for sr in sub_results)), 4
+        "Credible": round(
+            min((sr["probs"].get("Credible", 0.0) for sr in sub_results)), 4
         ),
-        "Misinformation": round(
-            max((sr["probs"].get("Misinformation", 0.0) for sr in sub_results)), 4
+        "Uncertain": round(
+            max((sr["probs"].get("Uncertain", 0.0) for sr in sub_results)), 4
         ),
-        "Real": round(
-            min((sr["probs"].get("Real", 0.0) for sr in sub_results)), 4
+        "Not Credible": round(
+            max((sr["probs"].get("Not Credible", 0.0) for sr in sub_results)), 4
         ),
     }
 
