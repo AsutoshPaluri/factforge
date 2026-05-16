@@ -116,10 +116,11 @@ image = (
 def web():
     """Build and return the FastAPI app. Runs once per container start."""
     import os
+    from typing import Annotated
 
     import torch
     import torch.nn.functional as F
-    from fastapi import FastAPI, Header, HTTPException
+    from fastapi import Body, FastAPI, Header, HTTPException
     from pydantic import BaseModel
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -170,10 +171,19 @@ def web():
         """Unauthenticated liveness probe (used by warm-up pings)."""
         return {"status": "ok", "model": MODEL_NAME}
 
+    # Why the Annotated[...] dance:
+    #   FastAPI infers a parameter's source (body / query / header) from
+    #   its type annotation. For Pydantic models defined OUTSIDE the
+    #   route's enclosing function, the inference works automatically.
+    #   But `ScoreRequest` here lives inside `web()` — FastAPI 0.115+
+    #   sometimes fails the `issubclass(annotation, BaseModel)` check
+    #   for locally-scoped classes and falls back to treating the
+    #   parameter as a query string field. We force the intent
+    #   explicitly with `Annotated[..., Body()]` and `Annotated[..., Header(...)]`.
     @web_app.post("/score", response_model=ScoreResponse)
     def score(
-        req: ScoreRequest,
-        x_api_key: str = Header(default="", alias="X-API-Key"),
+        req: Annotated[ScoreRequest, Body()],
+        x_api_key: Annotated[str, Header(alias="X-API-Key")] = "",
     ) -> dict[str, list[dict[str, float]]]:
         """Score each premise against the same hypothesis.
 
