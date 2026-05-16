@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     upstash_redis_rest_url: str = ""
     upstash_redis_rest_token: str = ""
 
+    # --- Optional: Modal-hosted GPU NLI ---
+    # When set, the NLI client calls this Modal endpoint as the primary
+    # path (much faster than CPU). On any failure (timeout, non-2xx,
+    # network blip, exhausted Modal budget) the client transparently
+    # falls back to the local DeBERTa model on CPU.
+    modal_nli_url: str = ""        # e.g. https://<user>--factforge-nli-web.modal.run
+    modal_nli_api_key: str = ""    # shared secret stored in Modal Secret 'factforge-nli'
+
     # --- Daily budget caps (kill-switch thresholds) ---
     daily_gemini_tokens_cap: int = 800_000  # 80% of 1M free tier
     daily_ddg_searches_cap: int = 1_000

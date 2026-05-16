@@ -1,12 +1,26 @@
-"""NLI inference wrapper — DeBERTa-v3-large-MNLI-FEVER (async-compatible).
+"""NLI inference wrapper — DeBERTa-v3-large-MNLI-FEVER.
 
-The model is loaded lazily on first call and reused across requests via
-a process-wide singleton. Inference runs inside `asyncio.to_thread` so
-the FastAPI event loop stays responsive.
+Two backends, transparently composed:
 
-The model's label order isn't fixed across checkpoints, so we resolve
-the entailment / neutral / contradiction indices from `config.id2label`
-at load time rather than hardcoding integer positions.
+  * **Remote (preferred)** — a Modal-hosted GPU instance of the same
+    model. Configured via the `MODAL_NLI_URL` and `MODAL_NLI_API_KEY`
+    env vars. Roughly 30× faster per batch than the CPU path
+    (~150ms/chunk vs ~3-5s/chunk).
+
+  * **Local (fallback)** — the embedded transformers model running on
+    whatever device pytorch picks (CPU on HF free tier). Always
+    available. Used when the remote backend is unavailable, hasn't
+    been configured, or is in cooldown after a recent failure.
+
+Design notes:
+  - The local model loads lazily. If remote works, the local model
+    stays unloaded — ~2GB of RAM is never claimed.
+  - A 60-second circuit-breaker cooldown is applied after a remote
+    failure, so subsequent requests in that window skip the remote
+    call entirely (avoiding the per-request timeout penalty).
+  - The model's label order isn't fixed across checkpoints, so we
+    resolve entailment / neutral / contradiction indices from
+    `config.id2label` at local-load time rather than hardcoding.
 
 Usage:
     verifier = await get_verifier()
@@ -15,8 +29,6 @@ Usage:
                   "Earth is flat."],
         hypothesis="The earth is round.",
     )
-    # -> [NLIScore(entailment=0.87, ...),
-    #     NLIScore(contradiction=0.92, ...)]
 """
 
 from __future__ import annotations
@@ -26,6 +38,7 @@ import time
 from dataclasses import dataclass
 from typing import Sequence
 
+import httpx
 import structlog
 import torch
 import torch.nn.functional as F
@@ -34,6 +47,15 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from factforge.config import settings
 
 logger = structlog.get_logger(__name__)
+
+
+# Modal cold-start can hit ~10-15s; give it room before falling back.
+# Still way under the ~70-120s a fully-local NLI step would cost.
+_REMOTE_TIMEOUT_S = 30.0
+
+# After a remote failure, skip remote for this long. Keeps slow-failure
+# requests rare instead of every-other-request.
+_REMOTE_COOLDOWN_S = 60.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,11 +88,14 @@ def _resolve_device(device_setting: str) -> torch.device:
 
 
 class NLIVerifier:
-    """NLI inferencer with batched inference and lazy model loading.
+    """NLI scorer with optional Modal-GPU primary path.
 
-    Designed for use inside an async server: load once per process, then
-    each `.score()` call runs the forward pass in a thread so the
-    asyncio loop isn't blocked.
+    On each `.score()` call:
+      1. If a remote (Modal) backend is configured and not in cooldown,
+         try it first. On success, return its results.
+      2. On any failure (timeout, non-2xx, malformed response), log a
+         warning, mark remote as in cooldown, and fall through to local.
+      3. Local backend lazy-loads the model on first need.
     """
 
     DEFAULT_BATCH_SIZE = 8
@@ -87,7 +112,7 @@ class NLIVerifier:
         self.max_length = max_length
         self.batch_size = batch_size
 
-        # Loaded lazily on first score() call
+        # --- Local model (loaded lazily) ---
         self._tokenizer = None
         self._model = None
         self._e_idx: int | None = None
@@ -96,7 +121,26 @@ class NLIVerifier:
         self._loaded = False
         self._load_lock = asyncio.Lock()
 
-    # --- Loading ---
+        # --- Remote (Modal) ---
+        self._remote_url: str = (
+            settings.modal_nli_url.rstrip("/") if settings.modal_nli_url else ""
+        )
+        self._remote_api_key: str = settings.modal_nli_api_key
+        self._remote_enabled = bool(self._remote_url and self._remote_api_key)
+        self._remote_cooldown_until: float = 0.0
+        self._http_client: httpx.AsyncClient | None = None
+
+        if self._remote_enabled:
+            logger.info("nli_remote_configured", url=self._remote_url)
+        else:
+            logger.info(
+                "nli_remote_not_configured",
+                reason="MODAL_NLI_URL or MODAL_NLI_API_KEY missing — using local model",
+            )
+
+    # ------------------------------------------------------------------
+    # Local backend
+    # ------------------------------------------------------------------
     async def _ensure_loaded(self) -> None:
         if self._loaded:
             return
@@ -107,7 +151,7 @@ class NLIVerifier:
 
     def _load_sync(self) -> None:
         logger.info(
-            "nli_loading_model",
+            "nli_loading_local_model",
             model=self.model_name,
             device=str(self.device),
         )
@@ -129,18 +173,16 @@ class NLIVerifier:
 
         self._loaded = True
         logger.info(
-            "nli_loaded",
+            "nli_local_loaded",
             elapsed_s=round(time.time() - t0, 2),
             params_m=round(sum(p.numel() for p in self._model.parameters()) / 1e6, 1),
         )
 
-    # --- Inference ---
     @torch.no_grad()
-    def _score_batch_sync(
+    def _score_batch_local_sync(
         self, premises: list[str], hypothesis: str
     ) -> list[NLIScore]:
-        """Run batched forward passes; one hypothesis paired with each premise."""
-        # Loader runs first, so these are guaranteed populated:
+        """Run batched forward passes on the local model."""
         tok = self._tokenizer
         mdl = self._model
         assert tok is not None and mdl is not None
@@ -175,20 +217,98 @@ class NLIVerifier:
                 )
         return results
 
+    async def _score_local(
+        self, premises: list[str], hypothesis: str
+    ) -> list[NLIScore]:
+        await self._ensure_loaded()
+        return await asyncio.to_thread(
+            self._score_batch_local_sync, premises, hypothesis
+        )
+
+    # ------------------------------------------------------------------
+    # Remote backend (Modal)
+    # ------------------------------------------------------------------
+    def _remote_available(self) -> bool:
+        return self._remote_enabled and time.time() >= self._remote_cooldown_until
+
+    async def _get_http_client(self) -> httpx.AsyncClient:
+        if self._http_client is None:
+            self._http_client = httpx.AsyncClient(timeout=_REMOTE_TIMEOUT_S)
+        return self._http_client
+
+    async def _score_remote(
+        self, premises: list[str], hypothesis: str
+    ) -> list[NLIScore]:
+        """Call the Modal-hosted NLI endpoint. Raises on any failure."""
+        client = await self._get_http_client()
+        response = await client.post(
+            f"{self._remote_url}/score",
+            headers={"X-API-Key": self._remote_api_key},
+            json={"premises": premises, "hypothesis": hypothesis},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        scores_raw = data.get("scores")
+        if not isinstance(scores_raw, list) or len(scores_raw) != len(premises):
+            raise ValueError(
+                f"unexpected response shape: got {type(scores_raw).__name__} "
+                f"with {len(scores_raw) if isinstance(scores_raw, list) else '?'} "
+                f"items, expected list of {len(premises)}"
+            )
+        return [
+            NLIScore(
+                entailment=float(s["entailment"]),
+                neutral=float(s["neutral"]),
+                contradiction=float(s["contradiction"]),
+            )
+            for s in scores_raw
+        ]
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
     async def score(
         self, premises: Sequence[str], hypothesis: str
     ) -> list[NLIScore]:
         """Score each premise against the same hypothesis.
 
-        Returns NLIScore list in the same order as `premises`. Runs in a
-        thread to keep the event loop free.
+        Tries the remote (Modal) backend first if configured and not in
+        cooldown. Falls through to the local CPU model on any failure.
+        Returns NLIScore list in the same order as `premises`.
         """
-        await self._ensure_loaded()
         if not premises:
             return []
-        return await asyncio.to_thread(
-            self._score_batch_sync, list(premises), hypothesis
+        prem_list = list(premises)
+
+        if self._remote_available():
+            t0 = time.time()
+            try:
+                scores = await self._score_remote(prem_list, hypothesis)
+                logger.info(
+                    "nli_remote_ok",
+                    n=len(prem_list),
+                    elapsed_s=round(time.time() - t0, 2),
+                )
+                return scores
+            except Exception as e:
+                self._remote_cooldown_until = (
+                    time.time() + _REMOTE_COOLDOWN_S
+                )
+                logger.warning(
+                    "nli_remote_failed_falling_back_to_local",
+                    error=str(e),
+                    cooldown_s=_REMOTE_COOLDOWN_S,
+                )
+
+        t0 = time.time()
+        scores = await self._score_local(prem_list, hypothesis)
+        logger.info(
+            "nli_local_ok",
+            n=len(prem_list),
+            elapsed_s=round(time.time() - t0, 2),
         )
+        return scores
 
     async def score_one(self, premise: str, hypothesis: str) -> NLIScore:
         """Convenience: single-pair scoring."""
@@ -196,10 +316,23 @@ class NLIVerifier:
         return results[0]
 
     async def warmup(self) -> None:
-        """Load the model now (so the first scoring call doesn't pay it).
+        """Pre-warm whichever backend is configured.
 
-        Safe to call multiple times — subsequent calls are no-ops.
+        If remote is configured, hit its /health to wake the container.
+        Otherwise eagerly load the local model so the first /claims call
+        doesn't pay the load time. Safe to call multiple times.
         """
+        if self._remote_enabled:
+            try:
+                client = await self._get_http_client()
+                response = await client.get(
+                    f"{self._remote_url}/health", timeout=15.0
+                )
+                response.raise_for_status()
+                logger.info("nli_remote_warmup_ok")
+                return
+            except Exception as e:
+                logger.warning("nli_remote_warmup_failed", error=str(e))
         await self._ensure_loaded()
 
 
