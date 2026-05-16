@@ -319,20 +319,29 @@ class NLIVerifier:
         """Pre-warm whichever backend is configured.
 
         If remote is configured, hit its /health to wake the container.
-        Otherwise eagerly load the local model so the first /claims call
-        doesn't pay the load time. Safe to call multiple times.
+        Modal cold-starts include image pull + model load to GPU (~15-25s
+        on a fresh container), so we give the ping 45s before timing out.
+        Even if the timeout fires, the HTTP request continues server-side
+        and warms the container for the next real call — we just lose the
+        ability to log a clean 'warmup_ok' for this boot.
+
+        If remote isn't configured (or warmup ping fails outright), we
+        eagerly load the local model so the first /claims call doesn't
+        pay the ~7s load time. Safe to call multiple times.
         """
         if self._remote_enabled:
             try:
                 client = await self._get_http_client()
                 response = await client.get(
-                    f"{self._remote_url}/health", timeout=15.0
+                    f"{self._remote_url}/health", timeout=45.0
                 )
                 response.raise_for_status()
                 logger.info("nli_remote_warmup_ok")
                 return
             except Exception as e:
-                logger.warning("nli_remote_warmup_failed", error=str(e))
+                # repr() catches httpx exceptions whose str() is empty
+                # (e.g. ReadTimeout) so we get a useful log line.
+                logger.warning("nli_remote_warmup_failed", error=repr(e))
         await self._ensure_loaded()
 
 
