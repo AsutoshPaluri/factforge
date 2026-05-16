@@ -7,7 +7,7 @@
 [![Python](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black)](https://nextjs.org/)
 
-**Live:** [factforge.vercel.app](https://factforge.vercel.app)  ·  **Cost:** $0/month, no credit card on file
+**Live:** [factforge.vercel.app](https://factforge.vercel.app)  ·  **Author portfolio:** [asutoshpaluri.netlify.app](https://asutoshpaluri.netlify.app)  ·  **Cost:** $0/month, no credit card on file
 
 ---
 
@@ -191,4 +191,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-Built by [Asutosh Paluri](https://github.com/AsutoshPaluri) — MS Computational Linguistics, University of North Texas (May 2026).
+Built by [Asutosh Paluri](https://asutoshpaluri.netlify.app) — MS Computational Linguistics, University of North Texas (May 2026) · [GitHub](https://github.com/AsutoshPaluri) · [Portfolio](https://asutoshpaluri.netlify.app)
