@@ -62,17 +62,19 @@ rsync -av --delete \
 cp "$ROOT/backend/.dockerignore" "$SPACE_DIR/.dockerignore" 2>/dev/null || true
 
 # --- Step 3: write HF-flavored README at Space root ---
+# HF requires colorTo to be one of: red, yellow, green, blue, indigo, purple,
+# pink, gray. And short_description must be <= 60 characters.
 cat > "$SPACE_DIR/README.md" << 'EOF'
 ---
 title: factforge
 emoji: "🔎"
 colorFrom: indigo
-colorTo: rose
+colorTo: pink
 sdk: docker
 app_port: 7860
 pinned: false
 license: mit
-short_description: Multimodal fact-checking agent — Credible / Uncertain / Not Credible
+short_description: Multimodal fact-checking AI agent with citations
 ---
 
 # factforge — backend
@@ -96,17 +98,19 @@ human-in-the-loop refinement and memory-augmented learning.
 Full project: https://github.com/asutoshpaluri/factforge
 EOF
 
-# --- Step 4: commit + push ---
+# --- Step 4: commit (if changes) + push (always — covers retries) ---
 cd "$SPACE_DIR"
 git add .
 
 if git diff --cached --quiet; then
-  echo "[deploy-hf] No changes to deploy."
-  exit 0
+  echo "[deploy-hf] No new file changes — checking for unpushed commits..."
+else
+  git commit -m "Deploy backend $(date +%Y-%m-%d-%H%M)"
 fi
 
-git commit -m "Deploy backend $(date +%Y-%m-%d-%H%M)"
-
+# Always push. If everything is already on remote, this is a no-op.
+# If a previous run committed locally but the push was rejected
+# (e.g. bad YAML), this retries the push with the corrected files.
 echo "[deploy-hf] Pushing to HuggingFace..."
 git push
 
@@ -128,3 +132,9 @@ echo "  - GROQ_API_KEY"
 echo "  - SUPABASE_URL"
 echo "  - SUPABASE_PUBLISHABLE_KEY"
 echo "  - SUPABASE_SECRET_KEY"
+echo "  - LANGFUSE_HOST"
+echo "  - LANGFUSE_PUBLIC_KEY"
+echo "  - LANGFUSE_SECRET_KEY"
+echo ""
+echo "Copy each value from your local .env at:"
+echo "  /Users/asutoshpaluri/Documents/factforge/.env"
