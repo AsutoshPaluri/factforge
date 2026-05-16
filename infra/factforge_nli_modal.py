@@ -58,12 +58,21 @@ running on HF's CPU. Users never see an error; they just see the
 slower path for that window.
 """
 
-from __future__ import annotations
-
 from typing import Annotated
 
 import modal
 from pydantic import BaseModel
+
+# Note: deliberately NOT using `from __future__ import annotations`.
+# This file targets Python 3.12, so `list[str]` / `dict[str, str]` /
+# `str | None` already work natively. The future-import would turn
+# every annotation into a runtime string, which then breaks FastAPI's
+# Pydantic-v2 resolver for `Annotated[str, Header(...)]` params:
+#     PydanticUserError: TypeAdapter[Annotated[ForwardRef("..."), ...]]
+#         is not fully defined; ... FieldInfo(annotation=NoneType,...)
+# i.e. Pydantic can't resolve the forward-ref string back to the
+# actual `Header` class, so it stores the field with annotation=None
+# and 500s at request time.
 
 MODEL_NAME = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
 MAX_LENGTH = 512
