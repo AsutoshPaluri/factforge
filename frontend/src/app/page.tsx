@@ -876,11 +876,11 @@ export default function Home() {
 
               const accentBorder = (() => {
                 switch (result.verdict) {
-                  case "Real":
+                  case "Credible":
                     return "border-l-emerald-500";
-                  case "Misinformation":
+                  case "Uncertain":
                     return "border-l-amber-500";
-                  case "Disinformation":
+                  case "Not Credible":
                     return "border-l-rose-500";
                   default:
                     return "border-l-zinc-700";
