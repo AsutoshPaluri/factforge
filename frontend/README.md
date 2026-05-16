@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# factforge — frontend
 
-## Getting Started
+Next.js 16 + React 19 + Tailwind 4 UI for the factforge fact-checking agent.
 
-First, run the development server:
+See the [repo-root README](../README.md) for the full project description.
+
+**Live:** [factforge.vercel.app](https://factforge.vercel.app)
+
+## Local development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd frontend
+npm install
+
+# Point at your local backend (or the live HF Space)
+echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
+#  or, to develop against production backend:
+# echo "NEXT_PUBLIC_API_URL=https://AsutoshPaluri-factforge.hf.space" > .env.local
+
+npm run dev  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework**: Next.js 16 (App Router, Turbopack)
+- **UI**: Tailwind CSS 4 (dark theme, glass-morphism, aurora bg gradient)
+- **Language**: TypeScript 5
+- **Deploy**: Vercel (Production domain: `factforge.vercel.app`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Layout
 
-## Learn More
+```
+frontend/
+├── package.json
+├── next.config.ts
+├── tailwind.config.ts
+├── src/app/
+│   ├── layout.tsx          # global shell, fonts, metadata
+│   ├── page.tsx            # the single-page UI (claim input, verdict card, feedback)
+│   ├── globals.css         # Tailwind v4 base + dark-theme overrides
+│   └── api/                # API route handlers (proxy if needed)
+└── public/                 # static assets
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Notable UI bits
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Verdict card** — colour-coded by label: emerald (`Credible`) / amber (`Uncertain`) / rose (`Not Credible`)
+- **Agent-working timeline** — live progress through the 5 nodes (Decompose, Retrieve, Verify, Synthesize, Summarize)
+- **Feedback bar** — 👍/👎 + free-text comment + Refine button (re-runs the agent with the feedback as additional context)
+- **Cited summary** — plain-English explanation with inline source links rendered from the agent's structured output
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deploy
 
-## Deploy on Vercel
+`main` branch auto-deploys to Vercel on push.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The single required env var is `NEXT_PUBLIC_API_URL` (the backend's URL). Set it in Vercel project settings → Environment Variables.
