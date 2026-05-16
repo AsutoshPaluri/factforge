@@ -60,12 +60,48 @@ slower path for that window.
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import modal
+from pydantic import BaseModel
 
 MODEL_NAME = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
 MAX_LENGTH = 512
 
 app = modal.App("factforge-nli")
+
+
+# ---------------------------------------------------------------------------
+# Request / response schemas.
+#
+# These MUST live at module scope (not inside the @modal.asgi_app() function).
+# FastAPI 0.115+ with Pydantic v2 silently misclassifies locally-scoped
+# BaseModel subclasses during route-parameter introspection — the failure
+# mode is that the parameter is treated as a URL query field instead of
+# a request body, and every call returns:
+#     {"detail":[{"type":"missing","loc":["query","req"],...}]}
+# Defining the schemas here, where FastAPI's `issubclass(annotation, BaseModel)`
+# check works cleanly, fixes the bug.
+# ---------------------------------------------------------------------------
+class ScoreRequest(BaseModel):
+    """Inputs for the /score endpoint."""
+
+    premises: list[str]
+    hypothesis: str
+
+
+class NLIScore(BaseModel):
+    """One (premise, hypothesis) pair's three-way NLI probabilities."""
+
+    entailment: float
+    neutral: float
+    contradiction: float
+
+
+class ScoreResponse(BaseModel):
+    """One NLIScore per premise, same order as the input premises list."""
+
+    scores: list[NLIScore]
 
 
 # ---------------------------------------------------------------------------
@@ -116,12 +152,10 @@ image = (
 def web():
     """Build and return the FastAPI app. Runs once per container start."""
     import os
-    from typing import Annotated
 
     import torch
     import torch.nn.functional as F
     from fastapi import Body, FastAPI, Header, HTTPException
-    from pydantic import BaseModel
     from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
     # --- Load model into GPU memory (one-time per container) ---
@@ -139,20 +173,9 @@ def web():
 
     expected_api_key = os.environ.get("FACTFORGE_NLI_API_KEY", "")
 
-    # --- Schemas ---
-    class ScoreRequest(BaseModel):
-        premises: list[str]
-        hypothesis: str
-
-    class NLIScore(BaseModel):
-        entailment: float
-        neutral: float
-        contradiction: float
-
-    class ScoreResponse(BaseModel):
-        scores: list[NLIScore]
-
     # --- App ---
+    # (ScoreRequest / NLIScore / ScoreResponse are defined at module
+    # scope — see the comment block at the top of this file for why.)
     web_app = FastAPI(
         title="factforge-nli",
         description="GPU-hosted DeBERTa-v3-large NLI inference for factforge.",
@@ -171,15 +194,11 @@ def web():
         """Unauthenticated liveness probe (used by warm-up pings)."""
         return {"status": "ok", "model": MODEL_NAME}
 
-    # Why the Annotated[...] dance:
-    #   FastAPI infers a parameter's source (body / query / header) from
-    #   its type annotation. For Pydantic models defined OUTSIDE the
-    #   route's enclosing function, the inference works automatically.
-    #   But `ScoreRequest` here lives inside `web()` — FastAPI 0.115+
-    #   sometimes fails the `issubclass(annotation, BaseModel)` check
-    #   for locally-scoped classes and falls back to treating the
-    #   parameter as a query string field. We force the intent
-    #   explicitly with `Annotated[..., Body()]` and `Annotated[..., Header(...)]`.
+    # `Annotated[..., Body()]` and `Annotated[..., Header(...)]` make
+    # the parameter source explicit. Module-level Pydantic schemas would
+    # already let FastAPI figure out that `req` is a body and `x_api_key`
+    # is a header, but the explicit form is the FastAPI-recommended
+    # idiom and removes any ambiguity for future readers.
     @web_app.post("/score", response_model=ScoreResponse)
     def score(
         req: Annotated[ScoreRequest, Body()],
